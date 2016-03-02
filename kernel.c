@@ -186,10 +186,6 @@ void kernel_syscall_install(int num, void *call, int narg)
     kern.sched_unpin();
 }
 
-#ifndef DO_NOT_REMAP_RWX
-extern u8 _start[], _end[];
-#endif
-
 void kernel_remap(void *start, void *end, int perm)
 {
     u64 s = ((u64)start) & ~(u64)(PAGE_SIZE-1);
@@ -200,6 +196,9 @@ void kernel_remap(void *start, void *end, int perm)
 }
 
 static volatile int _global_test = 0;
+
+#ifndef DO_NOT_REMAP_RWX
+extern u8 _start[], _end[];
 
 static int patch_pmap_check(void)
 {
@@ -216,6 +215,7 @@ static int patch_pmap_check(void)
     kern.printf("pmap_protect patch failed!\n");
     return 0;
 }
+#endif
 
 int kernel_init(void)
 {
