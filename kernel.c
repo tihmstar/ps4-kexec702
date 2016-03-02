@@ -99,6 +99,7 @@ static int resolve_symbols(void)
     RESOLVE(kmem_alloc_contig);
     RESOLVE(kmem_free);
     RESOLVE(pmap_extract);
+    RESOLVE(pmap_protect);
     RESOLVE(sysent);
     RESOLVE(sched_pin);
     RESOLVE(sched_unpin);
@@ -185,34 +186,94 @@ void kernel_syscall_install(int num, void *call, int narg)
     kern.sched_unpin();
 }
 
+#ifndef DO_NOT_REMAP_RWX
+extern u8 _start[], _end[];
+#endif
+
+void kernel_remap(void *start, void *end, int perm)
+{
+    u64 s = ((u64)start) & ~(u64)(PAGE_SIZE-1);
+    u64 e = ((u64)end + PAGE_SIZE - 1) & ~(u64)(PAGE_SIZE-1);
+
+    kern.printf("pmap_protect(pmap, %p, %p, %d)\n", (void*)s, (void*)e, perm);
+    kern.pmap_protect(kern.kernel_pmap_store, s, e, 7);
+}
+
+static volatile int _global_test = 0;
+
+static int patch_pmap_check(void)
+{
+    u8 *p;
+
+    for (p = (u8*)kern.pmap_protect;
+         p < ((u8*)kern.pmap_protect + 0x500); p++) {
+        if (!memcmp(p, "\x83\xe0\x06\x83\xf8\x06", 6)) {
+            p[2] = 0;
+            kern.printf("pmap_protect patch successful (found at %p)\n", p);
+            return 1;
+        }
+    }
+    kern.printf("pmap_protect patch failed!\n");
+    return 0;
+}
+
 int kernel_init(void)
 {
     eprintf("kernel_init()\n");
 
+    // We may not be mapped writable yet, so to be able to write to globals
+    // we need WP disabled.
+    disable_interrupts();
+    cr0_write(cr0_read() & ~CR0_WP);
+
     Elf64_Ehdr *ehdr = find_kern_ehdr();
     if (!ehdr) {
         eprintf("Could not find kernel ELF header\n");
-        return -1;
+        goto err;
     }
     eprintf("ELF header at %p\n", ehdr);
 
     Elf64_Dyn *dyn = elf_get_dyn(ehdr);
     if (!dyn) {
         eprintf("Could not find kernel dynamic header\n");
-        return -1;
+        goto err;
     }
     eprintf("ELF dynamic section at %p\n", dyn);
 
     if (!elf_parse_dyn(dyn)) {
         eprintf("Failed to parse ELF dynamic section\n");
-        return -1;
+        goto err;
     }
 
     if (!resolve_symbols()) {
         eprintf("Failed to resolve all symbols\n");
-        return -1;
+        goto err;
     }
+
+#ifndef DO_NOT_REMAP_RWX
+    if (!patch_pmap_check())
+        goto err;
+#endif
+
+    // kernel_remap may need interrupts, but may not write to globals!
+    cr0_write(cr0_read() | CR0_WP);
+    enable_interrupts();
+
+#ifndef DO_NOT_REMAP_RWX
+    kernel_remap(_start, _end, 7);
+#endif
+
+    // Writing to globals is now safe.
+
+    kern.printf("Testing global variable access (write protection)...\n");
+    _global_test = 1;
+    kern.printf("OK.\n");
 
     kern.printf("Kernel interface initialized\n");
     return 0;
+
+err:
+    cr0_write(cr0_read() | CR0_WP);
+    enable_interrupts();
+    return -1;
 }

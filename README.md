@@ -13,6 +13,12 @@ To build a kexec.bin relocatable binary using the supplied Makefile, just type
 `make`. This will also build a kexec.a archive. You can either use the binary
 directly, or link the archive into your own project.
 
+If you link kexec.a with your own code, you need to supply the two symbols
+`_start` and `_end` in your linker script, as `kernel_init()` will try to remap
+all pages covered by that range as RWX (to make global variable accesses work).
+Alternatively, you can add `-DDO_NOT_REMAP_RWX` to CFLAGS to disable this
+feature, if you have already taken care of page permissions for the code.
+
 ## Usage
 
 The code is designed to be completely standalone. There is a single entry point:

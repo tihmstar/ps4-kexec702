@@ -129,6 +129,11 @@ cleanup:
 
 int kexec_init(void *_early_printf, sys_kexec_t *sys_kexec_ptr)
 {
+    // potentially needed to write early_printf
+    // kernel_init will undo this
+    disable_interrupts();
+    cr0_write(cr0_read() & ~CR0_WP);
+
     if (_early_printf)
         early_printf = _early_printf;
 

@@ -53,6 +53,7 @@ struct ksym_t {
                                      vm_memattr_t memattr);
     void (*kmem_free)(vm_map_t, vm_offset_t, vm_size_t);
     vm_paddr_t (*pmap_extract)(pmap_t pmap, vm_offset_t va);
+    void (*pmap_protect)(pmap_t pmap, u64 sva, u64 eva, u8 pr);
 
     struct sysent_t *sysent;
 
@@ -74,6 +75,8 @@ void *kernel_resolve(const char *name);
 
 void *kernel_alloc_contig(size_t size);
 void kernel_free_contig(void *addr, size_t size);
+
+void kernel_remap(void *start, void *end, int perm);
 
 void kernel_syscall_install(int num, void *call, int narg);
 int kernel_hook_install(void *target, void *hook);
