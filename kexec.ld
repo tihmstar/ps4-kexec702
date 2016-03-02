@@ -8,6 +8,8 @@
  * file for more information.
  */
 
+ENTRY(kexec_init)
+
 SECTIONS {
     /* We don't do GOT relocation and rely on nothing ending up using the GOT
      * (-fno-common helps here) */

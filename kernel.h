@@ -26,6 +26,17 @@ typedef void * pmap_t;
 
 typedef void (*smp_rendezvous_callback_t)(void *);
 
+struct sysent_t {
+    int sy_narg;
+    void *sy_call;
+    u16 sy_auevent;
+    void *sy_systrace_args_func;
+    int sy_entry;
+    int sy_return;
+    int sy_flags;
+    int sy_thrcnt;
+};
+
 struct ksym_t {
     int (*printf)(const char *fmt, ...);
 
@@ -42,6 +53,8 @@ struct ksym_t {
                                      vm_memattr_t memattr);
     void (*kmem_free)(vm_map_t, vm_offset_t, vm_size_t);
     vm_paddr_t (*pmap_extract)(pmap_t pmap, vm_offset_t va);
+
+    struct sysent_t *sysent;
 
     void (*sched_pin)(void);
     void (*sched_unpin)(void);
@@ -62,6 +75,7 @@ void *kernel_resolve(const char *name);
 void *kernel_alloc_contig(size_t size);
 void kernel_free_contig(void *addr, size_t size);
 
+void kernel_syscall_install(int num, void *call, int narg);
 int kernel_hook_install(void *target, void *hook);
 
 int kernel_init(void);

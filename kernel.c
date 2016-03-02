@@ -99,6 +99,7 @@ static int resolve_symbols(void)
     RESOLVE(kmem_alloc_contig);
     RESOLVE(kmem_free);
     RESOLVE(pmap_extract);
+    RESOLVE(sysent);
     RESOLVE(sched_pin);
     RESOLVE(sched_unpin);
     RESOLVE(smp_rendezvous);
@@ -166,6 +167,22 @@ int kernel_hook_install(void *target, void *hook)
     kern.sched_unpin();
 
     return 1;
+}
+
+void kernel_syscall_install(int num, void *call, int narg)
+{
+    struct sysent_t *sy = &kern.sysent[num];
+
+    kern.sched_pin();
+    cr0_write(cr0_read() & ~CR0_WP);
+
+    memset(sy, 0, sizeof(*sy));
+    sy->sy_narg = narg;
+    sy->sy_call = call;
+    sy->sy_thrcnt = 1;
+
+    cr0_write(cr0_read() | CR0_WP);
+    kern.sched_unpin();
 }
 
 int kernel_init(void)

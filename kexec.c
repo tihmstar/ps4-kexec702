@@ -126,3 +126,21 @@ cleanup:
     kernel_free_contig(initramfs, uap->initramfs_size);
     return err;
 }
+
+int kexec_init(void *_early_printf, sys_kexec_t *sys_kexec_ptr)
+{
+    if (_early_printf)
+        early_printf = _early_printf;
+
+    if (kernel_init() < 0)
+        return -1;
+
+    kern.printf("Installing sys_kexec to system call #%d\n", SYS_KEXEC);
+    kernel_syscall_install(SYS_KEXEC, sys_kexec, SYS_KEXEC_NARGS);
+    kern.printf("kexec_init() successful\n\n");
+
+    if (sys_kexec_ptr)
+        *sys_kexec_ptr = sys_kexec;
+
+    return 0;
+}

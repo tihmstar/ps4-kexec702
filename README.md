@@ -9,24 +9,38 @@ into the PS4 OS kernel.
 
 ## Building
 
-To build a kexec.a archive using the supplied Makefile, just type `make`. You
-can use the Makefile as a template or integrate the source files into your own
-code, perhaps as a git submodule.
-
-The code expects a reasonably sane C environment. The Makefile includes a few
-CFLAGS tricks that you may find useful. There is also a sample linker script
-(`kexec.ld`).
+To build a kexec.bin relocatable binary using the supplied Makefile, just type
+`make`. This will also build a kexec.a archive. You can either use the binary
+directly, or link the archive into your own project.
 
 ## Usage
 
-The code is designed to be mostly standalone. There are two entry points:
-`kernel_init()` in kernel.h and `sys_kexec()` in kexec.h. You should call
-`kernel_init()` after your exploit has cleaned up after itself and is in a
-clean kernel code context, then inject a system call table entry pointing to
-`sys_kexec`.
+The code is designed to be completely standalone. There is a single entry point:
 
-The `sys_kexec` system call takes (userspace) pointers to the kernel and
-initramfs blobs, their sizes, and a pointer to the (null-terminated) command
+    int kexec_init(void *early_printf, sys_kexec_t *sys_kexec_ptr);
+
+Simply call `kexec_init(NULL, NULL)`. This will locate all the required kernel
+symbols and install the sys_kexec system call. The syscall is registered
+as number 153 by default (you can change this in kexec.h). The return value
+is 0 on success, or negative on error.
+
+You may pass something other than NULL as `early_printf`. In that case, that
+function will be used for debug output during early symbol resolution, before
+printf is available.
+
+If you do not want to call the syscall from userspace, you can pass the address
+of a function pointer as `sys_kexec_ptr`. `kexec_init` will write to it the
+address of `sys_kexec`, so you can invoke it manually (see kexec.h for
+its prototype and how the arguments are passed). Note that the data buffers
+still need to be userspace pointers in this case, unless you modify kexec.c to
+use different copy functions.
+
+If you are using the standalone kexec.bin blob, then the `kexec_init` function
+is always located at offset 0, so simply call the base address of the blob.
+Don't forget to pass two NULL arguments (or the appropriate pointers).
+
+The injected `sys_kexec` system call takes (userspace) pointers to the kernel
+and initramfs blobs, their sizes, and a pointer to the (null-terminated) command
 line string. From userspace, this looks like this:
 
     int kexec(void *kernel_image, size_t image_size,
@@ -47,10 +61,9 @@ kills userspace quickly but still does a controlled filesystem unmount):
 
 Note that this software should be loaded into kernel memory space. If you are
 running kernel code from userland mappings, you should either switch to kernel
-mappings or compile and load this code as a separate blob that is loaded into
-the kernel. While syscalls or exploit code may run properly from userland,
-the shutdown hook will not, as it will be called from a different process
-context.
+mappings or separately copy kexec.bin to a location in kernel address space.
+While syscalls or exploit code may run properly from userland, the shutdown hook
+will not, as it will be called from a different process context.
 
 ## Features
 
@@ -84,7 +97,3 @@ UART. Most of the code relies on the kernel `printf` implementation, and
 therefore you should patch out the UART output blanker to see it. The final
 code that runs on the boot CPU before booting the kernel uses direct UART
 writes and is not affected by the blanking feature of Orbis OS.
-
-To debug the early symbol resolver code before it has had a chance to locate
-the kernel's `printf` function, set the global variable `early_printf` to
-the address of that function before calling `kernel_init()`.
