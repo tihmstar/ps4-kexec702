@@ -52,6 +52,9 @@ line string. From userspace, this looks like this:
     int kexec(void *kernel_image, size_t image_size,
               void *initramfs, size_t initramfs_size,
               const char *cmdline);
+    
+    // syscall() usage:
+    syscall(153, kernel_image, image_size, initramfs, initramfs_size, cmdline);
 
 `kexec()` will load the kernel and initramfs into memory, but will not directly
 boot them. To boot the loaded kernel, shut down the system. This can be
@@ -74,7 +77,9 @@ will not, as it will be called from a different process context.
 ## Features
 
 `kernel_init()` will automatically find the Orbis OS kernel and resolve all
-necessary symbols to work. There are no static symbol dependencies.
+necessary symbols to work. There are no static symbol dependencies. If
+`DO_NOT_REMAP_RWX` is not defined (the default), it will also patch
+`pmap_protect` to disable the W^X restriction.
 
 In addition to loading the user-supplied initramfs, `kexec` will locate the
 Radeon firmware blobs inside Orbis OS, extract them, convert them to a format
