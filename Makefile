@@ -12,7 +12,7 @@ SOURCES := kernel.c kexec.c linux_boot.c linux_thunk.S uart.c firmware.c
 OBJS := $(patsubst %.S,%.o,$(patsubst %.c,%.o,$(SOURCES)))
 DEPS := $(OBJS) $(SOURCES) $(INCLUDES:%=$(INC_DIR)/%) Makefile kexec.ld
 
-all: kexec.a kexec.bin
+all: libkexec.a kexec.bin
 
 %.o: %.c *.h
 	gcc -c $(CFLAGS) -o $@ $<
@@ -20,14 +20,14 @@ all: kexec.a kexec.bin
 %.o: %.S
 	gcc -c $(CFLAGS) -o $@ $<
 
-kexec.a: $(OBJS)
+libkexec.a: $(OBJS)
 	ar -rc $@ $(OBJS)
 
-kexec.elf: kexec.a kexec.ld
-	gcc $(CFLAGS) -o $@ kexec.a
+kexec.elf: libkexec.a kexec.ld
+	gcc $(CFLAGS) -o $@ libkexec.a
 
 %.bin: %.elf
 	objcopy -O binary $< $@
 
 clean:
-	rm -f kexec.a kexec.elf kexec.bin $(OBJS)
+	rm -f libkexec.a kexec.elf kexec.bin $(OBJS)
