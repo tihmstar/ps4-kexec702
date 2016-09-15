@@ -161,10 +161,10 @@ int kernel_hook_install(void *target, void *hook)
     ASSERT_STRSIZE(struct jmp_t, 5);
 
     kern.sched_pin();
-    cr0_write(cr0_read() & ~CR0_WP);
+    u64 wp = write_protect_disable();
     memcpy(hook, &jmp, sizeof(jmp));
     wbinvd();
-    cr0_write(cr0_read() | CR0_WP);
+    write_protect_restore(wp);
     kern.sched_unpin();
 
     return 1;
@@ -175,14 +175,14 @@ void kernel_syscall_install(int num, void *call, int narg)
     struct sysent_t *sy = &kern.sysent[num];
 
     kern.sched_pin();
-    cr0_write(cr0_read() & ~CR0_WP);
+    u64 wp = write_protect_disable();
 
     memset(sy, 0, sizeof(*sy));
     sy->sy_narg = narg;
     sy->sy_call = call;
     sy->sy_thrcnt = 1;
 
-    cr0_write(cr0_read() | CR0_WP);
+    write_protect_restore(wp);
     kern.sched_unpin();
 }
 
@@ -192,7 +192,7 @@ void kernel_remap(void *start, void *end, int perm)
     u64 e = ((u64)end + PAGE_SIZE - 1) & ~(u64)(PAGE_SIZE-1);
 
     kern.printf("pmap_protect(pmap, %p, %p, %d)\n", (void*)s, (void*)e, perm);
-    kern.pmap_protect(kern.kernel_pmap_store, s, e, 7);
+    kern.pmap_protect(kern.kernel_pmap_store, s, e, perm);
 }
 
 static volatile int _global_test = 0;
@@ -219,12 +219,13 @@ static int patch_pmap_check(void)
 
 int kernel_init(void)
 {
+    int rv = -1;
     eprintf("kernel_init()\n");
 
     // We may not be mapped writable yet, so to be able to write to globals
     // we need WP disabled.
-    disable_interrupts();
-    cr0_write(cr0_read() & ~CR0_WP);
+    u64 flags = intr_disable();
+    u64 wp = write_protect_disable();
 
     Elf64_Ehdr *ehdr = find_kern_ehdr();
     if (!ehdr) {
@@ -250,17 +251,19 @@ int kernel_init(void)
         goto err;
     }
 
+    // Pin ourselves as soon as possible. This is expected to be released by the caller.
+    kern.sched_pin();
+
 #ifndef DO_NOT_REMAP_RWX
     if (!patch_pmap_check())
         goto err;
 #endif
 
-    // kernel_remap may need interrupts, but may not write to globals!
-    cr0_write(cr0_read() | CR0_WP);
-    enable_interrupts();
-
 #ifndef DO_NOT_REMAP_RWX
+    // kernel_remap may need interrupts, but may not write to globals!
+    enable_interrupts();
     kernel_remap(_start, _end, 7);
+    disable_interrupts();
 #endif
 
     // Writing to globals is now safe.
@@ -270,10 +273,10 @@ int kernel_init(void)
     kern.printf("OK.\n");
 
     kern.printf("Kernel interface initialized\n");
-    return 0;
+    rv = 0;
 
 err:
-    cr0_write(cr0_read() | CR0_WP);
-    enable_interrupts();
-    return -1;
+    write_protect_restore(wp);
+    intr_restore(flags);
+    return rv;
 }

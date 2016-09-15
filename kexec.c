@@ -129,16 +129,19 @@ cleanup:
 
 int kexec_init(void *_early_printf, sys_kexec_t *sys_kexec_ptr)
 {
+    int rv = 0;
+
     // potentially needed to write early_printf
-    // kernel_init will undo this
-    disable_interrupts();
-    cr0_write(cr0_read() & ~CR0_WP);
+    u64 flags = intr_disable();
+    u64 wp = write_protect_disable();
 
     if (_early_printf)
         early_printf = _early_printf;
 
-    if (kernel_init() < 0)
-        return -1;
+    if (kernel_init() < 0) {
+        rv = -1;
+        goto cleanup;
+    }
 
     kern.printf("Installing sys_kexec to system call #%d\n", SYS_KEXEC);
     kernel_syscall_install(SYS_KEXEC, sys_kexec, SYS_KEXEC_NARGS);
@@ -147,5 +150,14 @@ int kexec_init(void *_early_printf, sys_kexec_t *sys_kexec_ptr)
     if (sys_kexec_ptr)
         *sys_kexec_ptr = sys_kexec;
 
-    return 0;
+cleanup:
+    write_protect_restore(wp);
+    if (kern.sched_unpin && wp & CR0_WP) {
+        // If we're returning to a state with WP enabled, assume the caller
+        // wants the thread unpinned. Else the caller is expected to
+        // call kern.sched_unpin() manually.
+        kern.sched_unpin();
+    }
+    intr_restore(flags);
+    return rv;
 }
