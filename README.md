@@ -34,6 +34,14 @@ You may pass something other than NULL as `early_printf`. In that case, that
 function will be used for debug output during early symbol resolution, before
 printf is available.
 
+Since PS4 3.55(?), KASLR(Kernel Address Space Layout Randomization) is
+enabled by default, symtab also disappears in newer kernel, we have to
+hardcode offsets for some symbols. Currently we use the `early_printf`
+given by user to caculate the base address of kernel, then relocate all the
+symbols from the kernel base. You could enable this feature like this:
+
+	make CFLAG='-DPS4_4_00 -DKASLR -DNO_SYMTAB'
+
 If you do not want to call the syscall from userspace, you can pass the address
 of a function pointer as `sys_kexec_ptr`. `kexec_init` will write to it the
 address of `sys_kexec`, so you can invoke it manually (see kexec.h for

@@ -21,7 +21,7 @@ static u64 vram_base = 0x100000000;
 // Current code assumes it's a power of two.
 static u64 vram_size = 512 * 1024 * 1024;
 
-#define DM_PML4_BASE 0x1fc
+#define DM_PML4_BASE ((kern.dmap_base >> PML4SHIFT) & 0x1ff)
 
 struct desc_ptr {
     u16 limit;

@@ -1,11 +1,8 @@
-ifdef DDO_NOT_REMAP_RWX
-DO_NOT_REMAP_RWX := -DDO_NOT_REMAP_RWX
-endif
-
-CFLAGS := -march=btver2 -masm=intel -std=gnu11 -ffreestanding -fno-common \
+CFLAGS=$(CFLAG)
+CFLAGS += -march=btver2 -masm=intel -std=gnu11 -ffreestanding -fno-common \
 	-fPIC -fomit-frame-pointer -nostdlib -nostdinc \
 	-fno-asynchronous-unwind-tables \
-	-Os -Wall -Werror -Wl,--build-id=none,-T,kexec.ld,--nmagic $(DO_NOT_REMAP_RWX)
+	-Os -Wall -Werror -Wl,--build-id=none,-T,kexec.ld,--nmagic
 
 SOURCES := kernel.c kexec.c linux_boot.c linux_thunk.S uart.c firmware.c
 

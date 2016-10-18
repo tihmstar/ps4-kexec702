@@ -14,8 +14,22 @@
 #include "types.h"
 
 #define PAGE_SIZE 0x4000
-#define PA_TO_DM(x) (((uintptr_t)x) | 0xfffffe0000000000ull)
-#define DM_TO_ID(x) (((uintptr_t)x) & 0x000000ffffffffffull)
+#define PAGE_MASK (PAGE_SIZE - 1)
+
+#define PML4SHIFT 39
+#define PDPSHIFT 30
+#define PDRSHIFT 21
+#define PAGE_SHIFT 12
+
+#define KVADDR(l4, l3, l2, l1) ( \
+	((unsigned long)-1 << 47) | \
+	((unsigned long)(l4) << PML4SHIFT) | \
+	((unsigned long)(l3) << PDPSHIFT) | \
+	((unsigned long)(l2) << PDRSHIFT) | \
+	((unsigned long)(l1) << PAGE_SHIFT))
+
+#define PA_TO_DM(x) (((uintptr_t)x) | kern.dmap_base)
+#define DM_TO_ID(x) (((uintptr_t)x) & (~kern.dmap_base)) // XXX
 
 typedef u64 vm_paddr_t;
 typedef u64 vm_offset_t;
@@ -38,6 +52,10 @@ struct sysent_t {
 };
 
 struct ksym_t {
+	// two parameters related to kaslr (they are not symbols)
+	uintptr_t kern_base;
+	uintptr_t dmap_base;
+
     int (*printf)(const char *fmt, ...);
 
     int (*copyin)(const void *uaddr, void *kaddr, size_t len);
@@ -64,6 +82,8 @@ struct ksym_t {
                            smp_rendezvous_callback_t, void *);
     // yes...it is misspelled :)
     void (*smp_no_rendevous_barrier)(void *);
+    void *icc_query_nowait;
+    void *Starsha_UcodeInfo;
 };
 
 extern struct ksym_t kern;
