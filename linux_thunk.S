@@ -42,8 +42,8 @@ jmp_to_linux:
     # TODO make sure we don't inadvertently overwrite (important) smap regions
     #   I think on ps4 we'll actually want to load to 0x700000
     #   since we have tons of free room there.
-    #	on 4.00/4.01, bzImage might be allocated at 0x800000 accidently. We
-    #	should choose a higher address as pref_address.
+    #   on 4.00/4.01, bzImage might be allocated at 0x800000 accidently. We
+    #   should choose a higher address as pref_address.
 
     # save args
     mov r12, rdi

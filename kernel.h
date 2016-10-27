@@ -52,9 +52,9 @@ struct sysent_t {
 };
 
 struct ksym_t {
-	// two parameters related to kaslr (they are not symbols)
-	uintptr_t kern_base;
-	uintptr_t dmap_base;
+    // two parameters related to kaslr (they are not symbols)
+    uintptr_t kern_base;
+    uintptr_t dmap_base;
 
     int (*printf)(const char *fmt, ...);
 

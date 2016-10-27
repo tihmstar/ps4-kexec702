@@ -241,24 +241,24 @@ int kernel_init(void)
 
     kern.kern_base = (u64)(early_printf - kern_off_printf);
     if ((kern.kern_base & PAGE_MASK) != 0) {
-		eprintf("Kernel base is not aligned\n");
+        eprintf("Kernel base is not aligned\n");
         return 0;
-	} else {
-		eprintf("Kernel base = %p\n", kern.kern_base);
-	}
+    } else {
+        eprintf("Kernel base = %p\n", kern.kern_base);
+    }
 
-	u64 DMPML4I = *(u32 *)(kern.kern_base + kern_off_dmpml4i);
-	u64 DMPDPI = *(u32 *)(kern.kern_base + kern_off_dmpdpi);
+    u64 DMPML4I = *(u32 *)(kern.kern_base + kern_off_dmpml4i);
+    u64 DMPDPI = *(u32 *)(kern.kern_base + kern_off_dmpdpi);
 
 #else
-	kern.kern_base = KVADDR(0x1ff, 0x1fe, 0, 0); // 0xffffffff80000000
+    kern.kern_base = KVADDR(0x1ff, 0x1fe, 0, 0); // 0xffffffff80000000
 
-	u64 DMPML4I = 0x1fc;
-	u64 DMPDPI = 0;
+    u64 DMPML4I = 0x1fc;
+    u64 DMPDPI = 0;
 #endif
 
-	kern.dmap_base = KVADDR(DMPML4I, DMPDPI, 0, 0);
-	eprintf("Direct map base = %p\n", kern.dmap_base);
+    kern.dmap_base = KVADDR(DMPML4I, DMPDPI, 0, 0);
+    eprintf("Direct map base = %p\n", kern.dmap_base);
 
     // We may not be mapped writable yet, so to be able to write to globals
     // we need WP disabled.
