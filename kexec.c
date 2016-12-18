@@ -25,9 +25,10 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     char *cmd_line = NULL;
 
     kern.printf("sys_kexec invoked\n");
+    kern.printf("sys_kexec(%p, %ld, %p, %ld, \"%s\")\n", uap->image, uap->image_size, uap->initramfs, uap->initramfs_size, uap->cmd_line);
 
     // Look up our shutdown hook point
-    void *icc_query_nowait = kernel_resolve("icc_query_nowait");
+    void *icc_query_nowait = kern.icc_query_nowait;
     if (!icc_query_nowait) {
         err = 2; // ENOENT
         goto cleanup;

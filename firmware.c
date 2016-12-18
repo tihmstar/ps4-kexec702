@@ -109,7 +109,7 @@ ssize_t firmware_extract(void *dest)
     u8 *p = dest;
 
     // Yeah, this calls it Starsha... Liverpool, Starsha, ThebeJ, whatever.
-    struct fw_info_t *info = kernel_resolve("Starsha_UcodeInfo");
+    struct fw_info_t *info = kern.Starsha_UcodeInfo;
     if (!info) {
         kern.printf("firmware_extract: Could not locate firmware table");
         return -1;

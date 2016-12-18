@@ -12,14 +12,22 @@
 #include "string.h"
 #include "elf.h"
 #include "x86.h"
-
-#define KERNBASE    0xffffffff80000000ull
-#define KERNSIZE    0x2000000
+#include "magic.h"
 
 struct ksym_t kern;
 int (*early_printf)(const char *fmt, ...) = NULL;
 
 #define eprintf(...) do { if (early_printf) early_printf(__VA_ARGS__); } while(0)
+
+#ifdef NO_SYMTAB
+
+#define RESOLVE(name) do {\
+    kern.name = (void *)(kern.kern_base + kern_off_ ## name); \
+} while (0);
+
+#else
+
+#define KERNSIZE    0x2000000
 
 static const u8 ELF_IDENT[9] = "\x7f" "ELF\x02\x01\x01\x09\x00";
 static Elf64_Sym *symtab;
@@ -30,7 +38,7 @@ static Elf64_Ehdr *find_kern_ehdr(void)
 {
     // Search for the kernel copy embedded in ubios, then follow it to see
     // where it was relocated to
-    for (uintptr_t p = KERNBASE; p < KERNBASE + KERNSIZE; p += PAGE_SIZE) {
+    for (uintptr_t p = kern.kern_base; p < kern.kern_base + KERNSIZE; p += PAGE_SIZE) {
         Elf64_Ehdr *ehdr = (Elf64_Ehdr *)p;
         if (!memcmp(ehdr->e_ident, ELF_IDENT, sizeof(ELF_IDENT))) {
             for (size_t i = 0; i < ehdr->e_phnum; i++) {
@@ -87,6 +95,8 @@ void *kernel_resolve(const char *name)
 
 #define RESOLVE(name) if (!(kern.name = kernel_resolve(#name))) return 0;
 
+#endif
+
 static int resolve_symbols(void)
 {
     RESOLVE(printf);
@@ -105,6 +115,8 @@ static int resolve_symbols(void)
     RESOLVE(sched_unpin);
     RESOLVE(smp_rendezvous);
     RESOLVE(smp_no_rendevous_barrier);
+    RESOLVE(Starsha_UcodeInfo);
+    RESOLVE(icc_query_nowait);
     return 1;
 }
 
@@ -222,11 +234,38 @@ int kernel_init(void)
     int rv = -1;
     eprintf("kernel_init()\n");
 
+#ifdef KASLR
+    // use `early_printf` to calculate kernel base
+    if (early_printf == NULL)
+        return 0;
+
+    kern.kern_base = (u64)(early_printf - kern_off_printf);
+    if ((kern.kern_base & PAGE_MASK) != 0) {
+        eprintf("Kernel base is not aligned\n");
+        return 0;
+    } else {
+        eprintf("Kernel base = %p\n", kern.kern_base);
+    }
+
+    u64 DMPML4I = *(u32 *)(kern.kern_base + kern_off_dmpml4i);
+    u64 DMPDPI = *(u32 *)(kern.kern_base + kern_off_dmpdpi);
+
+#else
+    kern.kern_base = KVADDR(0x1ff, 0x1fe, 0, 0); // 0xffffffff80000000
+
+    u64 DMPML4I = 0x1fc;
+    u64 DMPDPI = 0;
+#endif
+
+    kern.dmap_base = KVADDR(DMPML4I, DMPDPI, 0, 0);
+    eprintf("Direct map base = %p\n", kern.dmap_base);
+
     // We may not be mapped writable yet, so to be able to write to globals
     // we need WP disabled.
     u64 flags = intr_disable();
     u64 wp = write_protect_disable();
 
+#ifndef NO_SYMTAB
     Elf64_Ehdr *ehdr = find_kern_ehdr();
     if (!ehdr) {
         eprintf("Could not find kernel ELF header\n");
@@ -245,6 +284,7 @@ int kernel_init(void)
         eprintf("Failed to parse ELF dynamic section\n");
         goto err;
     }
+#endif
 
     if (!resolve_symbols()) {
         eprintf("Failed to resolve all symbols\n");

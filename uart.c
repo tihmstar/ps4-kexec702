@@ -9,8 +9,8 @@
  */
 
 #include "uart.h"
-
-#define PHYS_TO_DMAP(size, addr) ((volatile u##size *)(0xfffffe0000000000 | (uintptr_t)(addr)))
+#include "kernel.h"
+#define PHYS_TO_DMAP(size, addr) ((volatile u##size *)(kern.dmap_base | (uintptr_t)(addr)))
 
 #define AEOLIA_UART_BASE 0xD0340000
 

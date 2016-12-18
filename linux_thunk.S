@@ -42,6 +42,8 @@ jmp_to_linux:
     # TODO make sure we don't inadvertently overwrite (important) smap regions
     #   I think on ps4 we'll actually want to load to 0x700000
     #   since we have tons of free room there.
+    #   on 4.00/4.01, bzImage might be allocated at 0x800000 accidently. We
+    #   should choose a higher address as pref_address.
 
     # save args
     mov r12, rdi
@@ -49,7 +51,8 @@ jmp_to_linux:
 
     # memmove(pref_address, , (syssize * 0x10) / 8)
     #mov rdi, [r12 + pref_address]  # dst = [image_base + pref_address] ; where linux image wants to go
-    mov rdi, 0x700000               # where ps4 freebsd kernel is loaded (before relocating itself)
+    #mov rdi, 0x700000               # where ps4 freebsd kernel is loaded (before relocating itself)
+    mov rdi, 0x6000000				# should be far from bzImage and initramfs
     mov r14, rdi                    # r14 = pref_address
     xor edx, edx
     mov dl, [r12 + setup_sects]
