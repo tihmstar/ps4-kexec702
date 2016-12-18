@@ -45,4 +45,28 @@
 #define kern_off_dmpml4i 0x200c304
 #define kern_off_dmpdpi 0x200c308
 
+#elif defined PS4_4_05
+
+#define kern_off_printf 0x347580
+#define kern_off_copyin 0x286df0
+#define kern_off_copyout 0x286d70
+#define kern_off_copyinstr 0x287160
+#define kern_off_kmem_alloc_contig 0x275ed0
+#define kern_off_kmem_free 0x3696b0
+#define kern_off_pmap_extract 0x3ef000
+#define kern_off_pmap_protect 0x3f1250
+#define kern_off_sched_pin 0x1d1250
+#define kern_off_sched_unpin 0x1d12B0
+#define kern_off_smp_rendezvous 0x34a150
+#define kern_off_smp_no_rendevous_barrier 0x349f10
+#define kern_off_icc_query_nowait 0x46c6d0
+#define kern_off_kernel_map 0x1fe71b8
+#define kern_off_sysent 0xf17790
+#define kern_off_kernel_pmap_store 0x200c310
+#define kern_off_Starsha_UcodeInfo 0x18dafb0
+
+#define kern_off_pml4pml4i 0x200c300
+#define kern_off_dmpml4i 0x200c304
+#define kern_off_dmpdpi 0x200c308
+
 #endif
