@@ -3,7 +3,7 @@ CFLAGS += -march=btver2 -masm=intel -std=gnu11 -ffreestanding -fno-common \
 	-fPIE -pie -fomit-frame-pointer -nostdlib -nostdinc \
 	-fno-asynchronous-unwind-tables \
 	-Os -Wall -Werror -Wl,--build-id=none,-T,kexec.ld,--nmagic \
-	-mcmodel=small
+	-mcmodel=small -mno-red-zone
 
 SOURCES := kernel.c kexec.c linux_boot.c linux_thunk.S uart.c firmware.c
 
