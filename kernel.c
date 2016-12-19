@@ -155,6 +155,8 @@ int kernel_hook_install(void *target, void *hook)
         return 0;
     }
 
+    kern.printf("kernel_hook_install(%p, %p)\n", target, hook);
+
     if (!(t & (1L << 63))) {
         kern.printf("\n===================== WARNING =====================\n");
         kern.printf("hook target function address: %p\n", t);
@@ -162,19 +164,35 @@ int kernel_hook_install(void *target, void *hook)
         kern.printf("Please run this code from a kernel memory mapping.\n\n");
         return 0;
     }
-
-    struct __attribute__((packed)) jmp_t{
-        u8 op[1];
-        s32 imm;
-    } jmp = {
-        .op = { 0xe9 },
-        .imm = t - (h + sizeof(jmp)),
-    };
-    ASSERT_STRSIZE(struct jmp_t, 5);
+    s64 displacement = t - (h + 5);
 
     kern.sched_pin();
     u64 wp = write_protect_disable();
-    memcpy(hook, &jmp, sizeof(jmp));
+    if (displacement < -0x80000000 || displacement > 0x7fffffff) {
+        kern.printf("  Using 64bit absolute jump\n");
+        struct __attribute__((packed)) jmp_t{
+            u8 op[2];
+            s32 zero;
+            void *target;
+        } jmp = {
+            .op = { 0xff, 0x25 },
+            .zero = 0,
+            .target = target,
+        };
+        ASSERT_STRSIZE(struct jmp_t, 14);
+        memcpy(hook, &jmp, sizeof(jmp));
+    } else {
+        kern.printf("  Using 32bit relative jump\n");
+        struct __attribute__((packed)) jmp_t{
+            u8 op[1];
+            s32 imm;
+        } jmp = {
+            .op = { 0xe9 },
+            .imm = displacement,
+        };
+        ASSERT_STRSIZE(struct jmp_t, 5);
+        memcpy(hook, &jmp, sizeof(jmp));
+    }
     wbinvd();
     write_protect_restore(wp);
     kern.sched_unpin();
