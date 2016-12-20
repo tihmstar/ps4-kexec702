@@ -168,12 +168,38 @@ static void setup_mtrr(void)
     enable_interrupts();
 }
 
+static void cleanup_interrupts(void)
+{
+    int i;
+    disable_interrupts();
+
+    // Reset APIC stuff (per-CPU)
+    *(volatile u32 *)PA_TO_DM(0xfee00410) = 1;
+    for (i = 0x320; i < 0x380; i += 0x10)
+        *(volatile u32 *)PA_TO_DM(0xfee00000 + i) = 0x10000;
+    for (i = 0x480; i < 0x500; i += 0x10)
+        *(volatile u32 *)PA_TO_DM(0xfee00000 + i) = 0xffffffff;
+    for (i = 0x500; i < 0x540; i += 0x10)
+        *(volatile u32 *)PA_TO_DM(0xfee00000 + i) = 0x10000;
+    *(volatile u32 *)PA_TO_DM(0xfee00410) = 0;
+
+    // Fix the LVT offset for thresholding
+    wrmsr(0x413, (1L<<24) | (1L<<52));
+    wrmsr(0xc0000408, (1L<<24) | (1L<<52));
+}
+
 static void cpu_quiesce_gate(void *arg)
 {
     int i;
 
     // Ensure we can write anywhere
     cr0_write(cr0_read() & ~CR0_WP);
+
+    // Interrupt stuff local to each CPU
+    cleanup_interrupts();
+
+    // We want to set up MTRRs on all CPUs
+    setup_mtrr();
 
     if (curcpu() != 0) {
         // We're not on BSP. Try to halt.
@@ -311,18 +337,22 @@ static void cpu_quiesce_gate(void *arg)
     uart_write_str("kexec: Cleaning up hardware...\n");
 
     // Disable IOMMU
-    *(volatile u32 *)PA_TO_DM(0xfc000018) &= ~1;
+    *(volatile u64 *)PA_TO_DM(0xfc000018) &= ~1;
+
     // Disable all MSIs on Aeolia
     for (i = 0; i < 8; i++)
         *(volatile u32 *)PA_TO_DM(0xd03c844c + i*4) = 0;
 
+    // Stop HPET timers
+    *(volatile u64 *)PA_TO_DM(0xd0382010) = 0;
+    *(volatile u64 *)PA_TO_DM(0xd0382100) = 0;
+    *(volatile u64 *)PA_TO_DM(0xd0382120) = 0;
+    *(volatile u64 *)PA_TO_DM(0xd0382140) = 0;
+    *(volatile u64 *)PA_TO_DM(0xd0382160) = 0;
+
     uart_write_str("kexec: Reconfiguring VRAM...\n");
 
     configure_vram();
-
-    uart_write_str("kexec: Reconfiguring MTRRs...\n");
-
-    setup_mtrr();
 
     uart_write_str("kexec: About to relocate and jump to kernel\n");
 
