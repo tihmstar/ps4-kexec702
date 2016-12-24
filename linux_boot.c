@@ -98,6 +98,7 @@ void prepare_boot_params(struct boot_params *bp, u8 *linux_image)
     bp_add_smap_entry(bp, 0x007f000000, 0x0001000000, SMAP_TYPE_MEMORY);
     bp_add_smap_entry(bp, 0x0080000000, 0x0060000000, SMAP_TYPE_RESERVED);
     bp_add_smap_entry(bp, 0x00e0000000, 0x0018000000, SMAP_TYPE_RESERVED);
+    bp_add_smap_entry(bp, 0x00f8000000, 0x0004000000, SMAP_TYPE_RESERVED);
     // Instead, carve out VRAM from the beginning of high memory
     bp_add_smap_entry(bp, vram_base, vram_size, SMAP_TYPE_RESERVED);
     bp_add_smap_entry(bp, vram_base + vram_size, 0x017f000000 - vram_size,
