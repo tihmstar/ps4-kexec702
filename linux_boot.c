@@ -14,6 +14,7 @@
 #include "x86.h"
 #include "kernel.h"
 #include "uart.h"
+#include "acpi.h"
 
 void uart_write_byte(u8 b);
 
@@ -61,14 +62,6 @@ void set_nix_info(void *linux_image, struct boot_params *bp, void *initramfs,
 }
 
 static volatile int halted_cpus = 0;
-
-static int curcpu(void)
-{
-    int cpuid;
-    // TODO ensure offsetof(struct pcpu, pc_cpuid) == 0x34 on all fw
-    asm volatile("mov %0, gs:0x34;" : "=r" (cpuid));
-    return cpuid;
-}
 
 static void bp_add_smap_entry(struct boot_params *bp, u64 addr, u64 size,
                               u32 type)
@@ -371,6 +364,10 @@ static void cpu_quiesce_gate(void *arg)
 int hook_icc_query_nowait(u8 *icc_msg)
 {
     kern.printf("hook_icc_query_nowait called\n");
+
+    fix_acpi_tables((void*)PA_TO_DM(0xe0000), 0xe0000);
+
+    kern.printf("ACPI tables fixed\n");
 
     // Transition to BSP and halt other cpus
     // smp_no_rendevous_barrier is just nullsub, but it is treated specially by

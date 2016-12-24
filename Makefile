@@ -5,7 +5,7 @@ CFLAGS += -march=btver2 -masm=intel -std=gnu11 -ffreestanding -fno-common \
 	-Os -Wall -Werror -Wl,--build-id=none,-T,kexec.ld,--nmagic \
 	-mcmodel=small -mno-red-zone
 
-SOURCES := kernel.c kexec.c linux_boot.c linux_thunk.S uart.c firmware.c
+SOURCES := kernel.c kexec.c linux_boot.c linux_thunk.S uart.c firmware.c acpi.c
 
 OBJS := $(patsubst %.S,%.o,$(patsubst %.c,%.o,$(SOURCES)))
 DEPS := $(OBJS) $(SOURCES) $(INCLUDES:%=$(INC_DIR)/%) Makefile kexec.ld

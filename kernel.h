@@ -88,6 +88,14 @@ struct ksym_t {
 
 extern struct ksym_t kern;
 
+static inline int curcpu(void)
+{
+    int cpuid;
+    // TODO ensure offsetof(struct pcpu, pc_cpuid) == 0x34 on all fw
+    asm volatile("mov %0, gs:0x34;" : "=r" (cpuid));
+    return cpuid;
+}
+
 // Assign a working printf function to this to debug the symbol resolver
 extern int (*early_printf)(const char *fmt, ...);
 

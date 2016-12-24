@@ -19,11 +19,13 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long long u64;
+#ifndef TESTING
 typedef u8 uint8_t;
 typedef u64 size_t;
 typedef s64 ssize_t;
 typedef u64 uintptr_t;
 typedef s64 off_t;
+#endif
 
 #define NULL ((void *)0)
 
