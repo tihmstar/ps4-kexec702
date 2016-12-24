@@ -269,6 +269,9 @@ void fix_acpi_tables(void *map_base, u64 phys_base)
     i++;
     p = build_ivrs(p);
 
+    rsdt->hdr.length = sizeof(*rsdt) + 4 * i;
+    xsdt->hdr.length = sizeof(*xsdt) + 8 * i;
+
     rsdp_checksum(rsdp);
     table_checksum(rsdt);
     table_checksum(xsdt);
