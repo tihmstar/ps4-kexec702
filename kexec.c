@@ -25,7 +25,8 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     char *cmd_line = NULL;
 
     kern.printf("sys_kexec invoked\n");
-    kern.printf("sys_kexec(%p, %ld, %p, %ld, \"%s\")\n", uap->image, uap->image_size, uap->initramfs, uap->initramfs_size, uap->cmd_line);
+    kern.printf("sys_kexec(%p, %zud, %p, %zud, \"%s\")\n", uap->image,
+        uap->image_size, uap->initramfs, uap->initramfs_size, uap->cmd_line);
 
     // Look up our shutdown hook point
     void *icc_query_nowait = kern.icc_query_nowait;
@@ -85,8 +86,8 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     cmd_line[cmd_line_maxlen - 1] = 0;
 
     kern.printf("\nkexec parameters:\n");
-    kern.printf("    Kernel image size:   %d bytes\n", uap->image_size);
-    kern.printf("    Initramfs size:      %d bytes (%d from user)\n",
+    kern.printf("    Kernel image size:   %zud bytes\n", uap->image_size);
+    kern.printf("    Initramfs size:      %zud bytes (%zud from user)\n",
                 initramfs_size, uap->initramfs_size);
     kern.printf("    Kernel command line: %s\n", cmd_line);
     kern.printf("    Kernel image buffer: %p\n", image);

@@ -133,7 +133,7 @@ void *kernel_alloc_contig(size_t size)
         ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT);
 
     if (!ret) {
-        kern.printf("Failed to allocate %d bytes\n", size);
+        kern.printf("Failed to allocate %zud bytes\n", size);
         return NULL;
     }
     return (void *)PA_TO_DM(kern.pmap_extract(kern.kernel_pmap_store, ret));
@@ -159,7 +159,7 @@ int kernel_hook_install(void *target, void *hook)
 
     if (!(t & (1L << 63))) {
         kern.printf("\n===================== WARNING =====================\n");
-        kern.printf("hook target function address: %p\n", t);
+        kern.printf("hook target function address: %p\n", target);
         kern.printf("It looks like we're running from userland memory.\n");
         kern.printf("Please run this code from a kernel memory mapping.\n\n");
         return 0;
@@ -262,7 +262,7 @@ int kernel_init(void)
         eprintf("Kernel base is not aligned\n");
         return 0;
     } else {
-        eprintf("Kernel base = %p\n", kern.kern_base);
+        eprintf("Kernel base = %llx\n", kern.kern_base);
     }
 
     u64 DMPML4I = *(u32 *)(kern.kern_base + kern_off_dmpml4i);
@@ -276,7 +276,7 @@ int kernel_init(void)
 #endif
 
     kern.dmap_base = KVADDR(DMPML4I, DMPDPI, 0, 0);
-    eprintf("Direct map base = %p\n", kern.dmap_base);
+    eprintf("Direct map base = %llx\n", kern.dmap_base);
 
     // We may not be mapped writable yet, so to be able to write to globals
     // we need WP disabled.
