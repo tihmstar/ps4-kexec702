@@ -40,7 +40,7 @@
 #define kern_off_kernel_map 0x1976cc8
 #define kern_off_sysent 0xef6d90
 #define kern_off_kernel_pmap_store 0x19c9628
-// ps4 Starsha_UcodeInfo (devid!=0x9920)
+// ps4 Starsha_UcodeInfo (devid!=0x9924)
 #define kern_off_Starsha_UcodeInfo 0x18734b0
 // ps4pro Starsha_UcodeInfo_GL_Bx (devid==0x9924 and gpu reg 0x203e reads as 0x10)
 //#define kern_off_Starsha_UcodeInfo 0x18b1f50
