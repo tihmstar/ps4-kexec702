@@ -348,6 +348,49 @@ static void cpu_quiesce_gate(void *arg)
 
     configure_vram();
 
+    uart_write_str("kexec: Resetting GPU...\n");
+
+    // Softreset GPU
+    *(volatile u64 *)PA_TO_DM(0xe480c300) = 0; // Halt RLC
+    *(volatile u64 *)PA_TO_DM(0xe48086d8) = 0x15000000; // Halt CP blocks
+    *(volatile u64 *)PA_TO_DM(0xe4808234) = 0x50000000; // Halt MEC
+    *(volatile u64 *)PA_TO_DM(0xe480d048) = 1; // Halt SDMA0
+    *(volatile u64 *)PA_TO_DM(0xe480d848) = 1; // Halt SDMA1
+    *(volatile u64 *)PA_TO_DM(0xe4808020) |= 0x10003; // Softreset GFX/CP/RLC
+    udelay(50);
+    *(volatile u64 *)PA_TO_DM(0xe4808020) &= ~0x10003;
+    udelay(50);
+    *(volatile u64 *)PA_TO_DM(0xe4800e60) |= 0x00100140; // Softreset SDMA/GRBM
+    udelay(50);
+    *(volatile u64 *)PA_TO_DM(0xe4800e60) &= ~0x00100140;
+    udelay(50);
+
+    // Enable audio output
+    *(volatile u64 *)PA_TO_DM(0xe4805e00) = 0x154;
+    *(volatile u64 *)PA_TO_DM(0xe4805e04) = 0x80000000;
+    *(volatile u64 *)PA_TO_DM(0xe4805e18) = 0x154;
+    *(volatile u64 *)PA_TO_DM(0xe4805e1c) = 0x80000000;
+    *(volatile u64 *)PA_TO_DM(0xe4805e30) = 0x154;
+    *(volatile u64 *)PA_TO_DM(0xe4805e34) = 0x80000000;
+    *(volatile u64 *)PA_TO_DM(0xe4813404) = 1;
+    *(volatile u64 *)PA_TO_DM(0xe481340c) = 1;
+
+//     // Set pin caps of pin 2 to vendor defined, to hide it
+//     *(volatile u64 *)PA_TO_DM(0xe4805e18) = 0x101;
+//     *(volatile u64 *)PA_TO_DM(0xe4805e1c) = 0xf00000;
+//     *(volatile u64 *)PA_TO_DM(0xe4805e18) = 0x120;
+//     *(volatile u64 *)PA_TO_DM(0xe4805e1c) = 0xf00000;
+//     // Set pin caps of pin 3 to !HDMI
+//     *(volatile u64 *)PA_TO_DM(0xe4805e30) = 0x121;
+//     *(volatile u64 *)PA_TO_DM(0xe4805e34) = 0x10;
+    // Set pin configuration default
+    *(volatile u64 *)PA_TO_DM(0xe4805e00) = 0x156;
+    *(volatile u64 *)PA_TO_DM(0xe4805e04) = 0x185600f0;
+    *(volatile u64 *)PA_TO_DM(0xe4805e18) = 0x156;
+    *(volatile u64 *)PA_TO_DM(0xe4805e1c) = 0x500000f0;
+    *(volatile u64 *)PA_TO_DM(0xe4805e30) = 0x156;
+    *(volatile u64 *)PA_TO_DM(0xe4805e34) = 0x014510f0;
+
     uart_write_str("kexec: About to relocate and jump to kernel\n");
 
     ((jmp_to_linux_t)thunk_copy)(

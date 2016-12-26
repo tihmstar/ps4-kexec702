@@ -101,6 +101,21 @@ static inline void wrmsr(u32 msr_id, u64 msr_value)
         );
 }
 
+static inline u64 rdtsc (void)
+{
+    unsigned int tickl, tickh;
+    asm volatile(
+        "rdtsc"
+        :"=a"(tickl),"=d"(tickh)
+        );
+    return ((u64)tickh << 32) | tickl;
+}
+
+static inline void udelay(unsigned int usec) {
+    u64 later = rdtsc() + usec * 1594ULL;
+    while (((s64)(later - rdtsc())) > 0);
+}
+
 static inline void disable_interrupts(void)
 {
     asm volatile("cli");
