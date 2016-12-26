@@ -1,4 +1,5 @@
 #ifdef PS4_3_55
+
 #define kern_off_printf 0x1df550
 #define kern_off_copyin 0x3b96e0
 #define kern_off_copyout 0x3b9660
@@ -20,6 +21,33 @@
 #define kern_off_pml4pml4i 0x19bd618
 #define kern_off_dmpml4i 0x19bd61c
 #define kern_off_dmpdpi 0x19bd620
+
+#elif defined PS4_3_70
+
+#define kern_off_printf 0x1df620
+#define kern_off_copyin 0x3b97d0
+#define kern_off_copyout 0x3b9750
+#define kern_off_copyinstr 0x3b9b40
+#define kern_off_kmem_alloc_contig 0x337f70
+#define kern_off_kmem_free 0x33bd70
+#define kern_off_pmap_extract 0x3afe60
+#define kern_off_pmap_protect 0x3b2040
+#define kern_off_sched_pin 0x1cee30
+#define kern_off_sched_unpin 0x1cee90
+#define kern_off_smp_rendezvous 0x1e78e0
+#define kern_off_smp_no_rendevous_barrier 0x1e76a0
+#define kern_off_icc_query_nowait 0x3ed7f0
+#define kern_off_kernel_map 0x1976cc8
+#define kern_off_sysent 0xef6d90
+#define kern_off_kernel_pmap_store 0x19c9628
+// ps4 Starsha_UcodeInfo (devid!=0x9920)
+#define kern_off_Starsha_UcodeInfo 0x18734b0
+// ps4pro Starsha_UcodeInfo_GL_Bx (devid==0x9924 and gpu reg 0x203e reads as 0x10)
+//#define kern_off_Starsha_UcodeInfo 0x18b1f50
+
+#define kern_off_pml4pml4i 0x19c9618
+#define kern_off_dmpml4i 0x19c961c
+#define kern_off_dmpdpi 0x19c9620
 
 #elif defined PS4_4_00 || PS4_4_01
 

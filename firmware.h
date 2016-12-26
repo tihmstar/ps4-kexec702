@@ -13,12 +13,21 @@
 
 #include "types.h"
 
+// sizes for liverpool
 #define FW_CE_SIZE 8576
 #define FW_ME_SIZE 16768
 #define FW_MEC_SIZE 16768
 #define FW_PFP_SIZE 16768
 #define FW_RLC_SIZE 6144
 #define FW_SDMA_SIZE 4200
+/* sizes for gladius
+#define FW_CE_SIZE (0x860*4)
+#define FW_ME_SIZE (0x1060*4)
+#define FW_MEC_SIZE (0x1060*4)
+#define FW_PFP_SIZE (0x1060*4)
+#define FW_RLC_SIZE (0x800*4)
+#define FW_SDMA_SIZE (0x41a*4)
+*/
 
 // Conservative value (max 113 bytes plus name size plus alignment)
 #define CPIO_HEADER_SIZE 256
