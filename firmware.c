@@ -86,6 +86,19 @@ struct fw_info_t {
     struct fw_header_t *mec2;
 };
 
+void copy_swab(void *dst, void *src, size_t size)
+{
+    u8 *s = src, *d = dst;
+    while (size) {
+        *d++ = s[3];
+        *d++ = s[2];
+        *d++ = s[1];
+        *d++ = s[0];
+        s += 4;
+        size -= 4;
+    }
+}
+
 int copy_firmware(u8 **p, const char *name, struct fw_header_t *hdr, size_t expected_size)
 {
     if (expected_size != (hdr->size_words * 4)) {
@@ -94,14 +107,42 @@ int copy_firmware(u8 **p, const char *name, struct fw_header_t *hdr, size_t expe
         return 0;
     }
 
-    for (u8 *src = hdr->blob; expected_size > 0; expected_size -= 4, src += 4) {
-        *(*p)++ = src[3];
-        *(*p)++ = src[2];
-        *(*p)++ = src[1];
-        *(*p)++ = src[0];
-    }
+    copy_swab(*p, hdr->blob, expected_size);
+    *p += expected_size;
 
     return 1;
+}
+
+u32 nop_handler[] = {
+    0xdc120000, //     mov r4, ctr
+    0x31144000, //     seteq r5, r4, #0x4000
+    0x95400009, //     cbz r5, l0
+    0xc4200016, //     ldw r8, [r0, #0x16]
+    0xdc030000, //     mov ctr, r0
+    0xcc000049, //     stw r0, [r0, #0x49]
+    0xcc200013, //     stw r0, [r8, #0x13]
+    0xc424007e, //     ldw r9, [r0, #0x7e]
+    0x96400000, // l1: cbz r9, l1
+    0x7c408001, //     mov r2, r1
+    0x88000000, //     btab
+    0xd440007f, // l0: stm r1, [r0, #0x7f]
+    0x7c408001, //     mov r2, r1
+    0x88000000, //     btab
+};
+
+#define PACKET_TYPE_NOP 0x10
+#define NOP_START 0xff0
+
+static void patch_pfp(u8 *pfp) {
+    copy_swab(&pfp[4 * NOP_START], nop_handler, sizeof(nop_handler));
+
+    // patch the branch table entry
+    for(int off = 4 * 0x1000; off < FW_PFP_SIZE; off += 4) {
+        if (pfp[off] == 0 && pfp[off + 1] == PACKET_TYPE_NOP) {
+            pfp[off+2] = NOP_START >> 8;
+            pfp[off+3] = NOP_START & 0xff;
+        }
+    }
 }
 
 ssize_t firmware_extract(void *dest)
@@ -128,8 +169,10 @@ ssize_t firmware_extract(void *dest)
     if (!copy_firmware(&p, "MEC", info->mec1, FW_MEC_SIZE))
         return -1;
     cpio_hdr(&p, "lib/firmware/radeon/LIVERPOOL_pfp.bin", FILE, FW_PFP_SIZE);
+    u8 *pfp = p;
     if (!copy_firmware(&p, "PFP", info->pfp, FW_PFP_SIZE))
         return -1;
+    patch_pfp(pfp);
     cpio_hdr(&p, "lib/firmware/radeon/LIVERPOOL_rlc.bin", FILE, FW_RLC_SIZE);
     if (!copy_firmware(&p, "RLC", info->rlc, FW_RLC_SIZE))
         return -1;
