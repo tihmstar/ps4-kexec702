@@ -84,6 +84,8 @@ struct ksym_t {
     void (*smp_no_rendevous_barrier)(void *);
     void *icc_query_nowait;
     void *Starsha_UcodeInfo;
+    int (*gpu_devid_is_9924)();
+    void *(*gc_get_fw_info)();
 };
 
 extern struct ksym_t kern;

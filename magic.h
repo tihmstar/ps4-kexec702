@@ -40,10 +40,9 @@
 #define kern_off_kernel_map 0x1976cc8
 #define kern_off_sysent 0xef6d90
 #define kern_off_kernel_pmap_store 0x19c9628
-// ps4 Starsha_UcodeInfo (devid!=0x9924)
-#define kern_off_Starsha_UcodeInfo 0x18734b0
-// ps4pro Starsha_UcodeInfo_GL_Bx (devid==0x9924 and gpu reg 0x203e reads as 0x10)
-//#define kern_off_Starsha_UcodeInfo 0x18b1f50
+#define kern_off_Starsha_UcodeInfo 0
+#define kern_off_gpu_devid_is_9924 0x443a20
+#define kern_off_gc_get_fw_info 0x44b5a0
 
 #define kern_off_pml4pml4i 0x19c9618
 #define kern_off_dmpml4i 0x19c961c
@@ -91,7 +90,9 @@
 #define kern_off_kernel_map 0x1fe71b8
 #define kern_off_sysent 0xf17790
 #define kern_off_kernel_pmap_store 0x200c310
-#define kern_off_Starsha_UcodeInfo 0x18dafb0
+#define kern_off_Starsha_UcodeInfo 0
+#define kern_off_gpu_devid_is_9924 0x4b9030
+#define kern_off_gc_get_fw_info 0x4a19a0
 
 #define kern_off_pml4pml4i 0x200c300
 #define kern_off_dmpml4i 0x200c304

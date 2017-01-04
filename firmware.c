@@ -124,6 +124,37 @@ struct fw_info_t {
     struct fw_header_t *mec2;
 };
 
+struct fw_expected_sizes_t {
+    u64 rlc;
+    u64 sdma0;
+    u64 sdma1;
+    u64 ce;
+    u64 pfp;
+    u64 me;
+    u64 mec1;
+    u64 mec2;
+};
+static const struct fw_expected_sizes_t liverpool_fw_sizes = {
+    LVP_FW_RLC_SIZE,
+    LVP_FW_SDMA_SIZE,
+    LVP_FW_SDMA1_SIZE,
+    LVP_FW_CE_SIZE,
+    LVP_FW_PFP_SIZE,
+    LVP_FW_ME_SIZE,
+    LVP_FW_MEC_SIZE,
+    LVP_FW_MEC2_SIZE
+};
+static const struct fw_expected_sizes_t gladius_fw_sizes = {
+    GL_FW_RLC_SIZE,
+    GL_FW_SDMA_SIZE,
+    GL_FW_SDMA1_SIZE,
+    GL_FW_CE_SIZE,
+    GL_FW_PFP_SIZE,
+    GL_FW_ME_SIZE,
+    GL_FW_MEC_SIZE,
+    GL_FW_MEC2_SIZE
+};
+
 int copy_firmware(u8 **p, const char *name, struct fw_header_t *hdr, size_t expected_size)
 {
     kern.printf("Copying %s firmware\n", name);
@@ -276,16 +307,35 @@ static void patch_fw(void *p, const u32 *handler, int handler_size) {
     }
 }
 
+struct fw_info_t *get_fw_info() {
+    if (kern.gc_get_fw_info) {
+        return kern.gc_get_fw_info();
+    } else if (kern.Starsha_UcodeInfo) {
+        return kern.Starsha_UcodeInfo;
+    } else {
+        return NULL;
+    }
+}
+
+const struct fw_expected_sizes_t *get_fw_expected_sizes() {
+    if (kern.gpu_devid_is_9924 && kern.gpu_devid_is_9924()) {
+        return &gladius_fw_sizes;
+    } else {
+        return &liverpool_fw_sizes;
+    }
+}
+
 ssize_t firmware_extract(void *dest)
 {
     u8 *p = dest;
 
     // Yeah, this calls it Starsha... Liverpool, Starsha, ThebeJ, whatever.
-    struct fw_info_t *info = kern.Starsha_UcodeInfo;
+    struct fw_info_t *info = get_fw_info();
     if (!info) {
         kern.printf("firmware_extract: Could not locate firmware table");
         return -1;
     }
+    const struct fw_expected_sizes_t *fw_sizes = get_fw_expected_sizes();
 
     cpio_hdr(&p, "lib", DIR, 0);
     cpio_hdr(&p, "lib/firmware", DIR, 0);
@@ -293,43 +343,43 @@ ssize_t firmware_extract(void *dest)
 
     cpio_hdr(&p, "lib/firmware/radeon/liverpool_pfp.bin", FILE, FW_HEADER_SIZE + FW_PFP_SIZE);
     u8 *pfp = p;
-    if (!copy_gfx_firmware(&p, "PFP", info->pfp, FW_PFP_SIZE))
+    if (!copy_gfx_firmware(&p, "PFP", info->pfp, fw_sizes->pfp))
         return -1;
     patch_fw(pfp, pfp_nop_handler, sizeof(pfp_nop_handler));
 
     cpio_hdr(&p, "lib/firmware/radeon/liverpool_me.bin", FILE, FW_HEADER_SIZE + FW_ME_SIZE);
-    if (!copy_gfx_firmware(&p, "ME", info->me, FW_ME_SIZE))
+    if (!copy_gfx_firmware(&p, "ME", info->me, fw_sizes->me))
         return -1;
 
     cpio_hdr(&p, "lib/firmware/radeon/liverpool_ce.bin", FILE, FW_HEADER_SIZE + FW_CE_SIZE);
     u8 *ce = p;
-    if (!copy_gfx_firmware(&p, "CE", info->ce, FW_CE_SIZE))
+    if (!copy_gfx_firmware(&p, "CE", info->ce, fw_sizes->ce))
         return -1;
     patch_fw(ce, ce_nop_handler, sizeof(ce_nop_handler));
 
     cpio_hdr(&p, "lib/firmware/radeon/liverpool_mec.bin", FILE, FW_HEADER_SIZE + FW_MEC_SIZE);
     u8 *mec1 = p;
-    if (!copy_gfx_firmware(&p, "MEC", info->mec1, FW_MEC_SIZE))
+    if (!copy_gfx_firmware(&p, "MEC", info->mec1, fw_sizes->mec1))
         return -1;
     patch_fw(mec1, mec_nop_handler, sizeof(mec_nop_handler));
 
     cpio_hdr(&p, "lib/firmware/radeon/liverpool_mec2.bin", FILE, FW_HEADER_SIZE + FW_MEC2_SIZE);
     u8 *mec2 = p;
-    if (!copy_gfx_firmware(&p, "MEC2", info->mec2, FW_MEC2_SIZE))
+    if (!copy_gfx_firmware(&p, "MEC2", info->mec2, fw_sizes->mec2))
         return -1;
     patch_fw(mec2, mec_nop_handler, sizeof(mec_nop_handler));
 
     cpio_hdr(&p, "lib/firmware/radeon/liverpool_rlc.bin", FILE, FW_HEADER_SIZE + FW_RLC_SIZE);
-    if (!copy_rlc_firmware(&p, "RLC", info->rlc, FW_RLC_SIZE))
+    if (!copy_rlc_firmware(&p, "RLC", info->rlc, fw_sizes->rlc))
         return -1;
 
     cpio_hdr(&p, "lib/firmware/radeon/liverpool_sdma.bin", FILE, FW_HEADER_SIZE + FW_SDMA_SIZE);
-    if (!copy_sdma_firmware(&p, "SDMA", info->sdma0, FW_SDMA_SIZE, 0))
+    if (!copy_sdma_firmware(&p, "SDMA", info->sdma0, fw_sizes->sdma0, 0))
         return -1;
     cpio_hdr(&p, "TRAILER!!!", FILE, 0);
 
     cpio_hdr(&p, "lib/firmware/radeon/liverpool_sdma1.bin", FILE, FW_HEADER_SIZE + FW_SDMA1_SIZE);
-    if (!copy_sdma_firmware(&p, "SDMA1", info->sdma1, FW_SDMA_SIZE, 1))
+    if (!copy_sdma_firmware(&p, "SDMA1", info->sdma1, fw_sizes->sdma1, 1))
         return -1;
     cpio_hdr(&p, "TRAILER!!!", FILE, 0);
 

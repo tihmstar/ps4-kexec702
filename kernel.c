@@ -21,8 +21,19 @@ int (*early_printf)(const char *fmt, ...) = NULL;
 
 #ifdef NO_SYMTAB
 
-#define RESOLVE(name) do {\
-    kern.name = (void *)(kern.kern_base + kern_off_ ## name); \
+#define RESOLVE_NOERR(name) do { \
+    if (kern_off_ ## name == 0) { \
+        kern.name = 0; \
+    } else { \
+        kern.name = (void *)(kern.kern_base + kern_off_ ## name); \
+    } \
+} while (0);
+
+#define RESOLVE(name) do { \
+    if (kern_off_ ## name == 0) { \
+        return 0; \
+    } \
+    RESOLVE_NOERR(name) \
 } while (0);
 
 #else
@@ -93,7 +104,8 @@ void *kernel_resolve(const char *name)
     return NULL;
 }
 
-#define RESOLVE(name) if (!(kern.name = kernel_resolve(#name))) return 0;
+#define RESOLVE_NOERR(name) (kern.name = kernel_resolve(#name))
+#define RESOLVE(name) if (!RESOLVE_NOERR(name)) return 0;
 
 #endif
 
@@ -115,8 +127,10 @@ static int resolve_symbols(void)
     RESOLVE(sched_unpin);
     RESOLVE(smp_rendezvous);
     RESOLVE(smp_no_rendevous_barrier);
-    RESOLVE(Starsha_UcodeInfo);
     RESOLVE(icc_query_nowait);
+    RESOLVE_NOERR(Starsha_UcodeInfo);
+    RESOLVE_NOERR(gpu_devid_is_9924);
+    RESOLVE_NOERR(gc_get_fw_info);
     return 1;
 }
 
