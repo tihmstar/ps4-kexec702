@@ -13,9 +13,47 @@
 #include "kernel.h"
 #include "string.h"
 #include "types.h"
+#include "crc32.h"
 
 #define DIR  0040755
 #define FILE 0100755
+
+struct firmware_header {
+    u32 size_bytes;
+    u32 header_size_bytes;
+    u16 header_version_major;
+    u16 header_version_minor;
+    u16 ip_version_major;
+    u16 ip_version_minor;
+    u32 ucode_version;
+    u32 ucode_size_bytes;
+    u32 ucode_array_offset_bytes;
+    u32 crc32;
+    union {
+        struct {
+            u32 ucode_feature_version;
+            u32 jt_offset;
+            u32 jt_size;
+            u8 end[];
+        } gfx1;
+        struct {
+            u32 ucode_feature_version;
+            u32 save_and_restore_offset;
+            u32 clear_state_descriptor_offset;
+            u32 avail_scratch_ram_locations;
+            u32 master_pkt_description_offset;
+            u8 end[];
+        } rlc1;
+        struct {
+            u32 ucode_feature_version;
+            u32 ucode_change_version;
+            u32 jt_offset;
+            u32 jt_size;
+            u8 end[];
+        } sdma1;
+        u8 raw[0xe0];
+    };
+};
 
 static inline char hex(u8 c)
 {
@@ -86,34 +124,89 @@ struct fw_info_t {
     struct fw_header_t *mec2;
 };
 
-void copy_swab(void *dst, void *src, size_t size)
-{
-    u8 *s = src, *d = dst;
-    while (size) {
-        *d++ = s[3];
-        *d++ = s[2];
-        *d++ = s[1];
-        *d++ = s[0];
-        s += 4;
-        size -= 4;
-    }
-}
-
 int copy_firmware(u8 **p, const char *name, struct fw_header_t *hdr, size_t expected_size)
 {
+    kern.printf("Copying %s firmware\n", name);
     if (expected_size != (hdr->size_words * 4)) {
         kern.printf("copy_firmware: %s: expected size %d, got %d\n",
                     name, expected_size, hdr->size_words * 4);
         return 0;
     }
 
-    copy_swab(*p, hdr->blob, expected_size);
+    struct firmware_header *fhdr = (struct firmware_header*)*p;
+    memset(fhdr, 0, sizeof(*fhdr));
+    *p += sizeof(*fhdr);
+
+    memcpy(*p, hdr->blob, expected_size);
+
+    fhdr->size_bytes = expected_size + sizeof(*fhdr);
+    fhdr->header_size_bytes = offsetof(struct firmware_header, raw);
+    fhdr->header_version_major = 1;
+    fhdr->header_version_minor = 0;
+    fhdr->ucode_version = 0x10;
+    fhdr->ucode_size_bytes = expected_size;
+    fhdr->ucode_array_offset_bytes = sizeof(*fhdr);
+
     *p += expected_size;
 
     return 1;
 }
 
-u32 nop_handler[] = {
+int copy_gfx_firmware(u8 **p, const char *name, struct fw_header_t *hdr, size_t expected_size)
+{
+    struct firmware_header *fhdr = (struct firmware_header*)*p;
+    if (!copy_firmware(p, name, hdr, expected_size))
+        return 0;
+
+    fhdr->ip_version_major = 7;
+    fhdr->ip_version_minor = 2;
+    fhdr->header_size_bytes = offsetof(struct firmware_header, gfx1.end);
+    fhdr->gfx1.ucode_feature_version = 27;
+    fhdr->gfx1.jt_offset = (expected_size & ~0xfff) >> 2;
+    fhdr->gfx1.jt_size = (expected_size & 0xfff) >> 2;
+
+    fhdr->crc32 = crc32(0, fhdr->raw, sizeof(fhdr->raw) + expected_size);
+    return 1;
+}
+
+int copy_rlc_firmware(u8 **p, const char *name, struct fw_header_t *hdr, size_t expected_size)
+{
+    struct firmware_header *fhdr = (struct firmware_header*)*p;
+    if (!copy_firmware(p, name, hdr, expected_size))
+        return 0;
+
+    fhdr->ip_version_major = 7;
+    fhdr->ip_version_minor = 2;
+    fhdr->header_size_bytes = offsetof(struct firmware_header, rlc1.end);
+    fhdr->rlc1.ucode_feature_version = 1;
+    fhdr->rlc1.save_and_restore_offset = 0x90;
+    fhdr->rlc1.clear_state_descriptor_offset = 0x3d;
+    fhdr->rlc1.avail_scratch_ram_locations = 0x270; // 0x170 for bonaire, 0x270 for kabini??
+    fhdr->rlc1.master_pkt_description_offset = 0;
+
+    fhdr->crc32 = crc32(0, fhdr->raw, sizeof(fhdr->raw) + expected_size);
+    return 1;
+}
+
+int copy_sdma_firmware(u8 **p, const char *name, struct fw_header_t *hdr, size_t expected_size, int idx)
+{
+    struct firmware_header *fhdr = (struct firmware_header*)*p;
+    if (!copy_firmware(p, name, hdr, expected_size))
+        return 0;
+
+    fhdr->ip_version_major = 2;
+    fhdr->ip_version_minor = 1;
+    fhdr->header_size_bytes = offsetof(struct firmware_header, sdma1.end);
+    fhdr->sdma1.ucode_feature_version = idx == 0 ? 9 : 0;
+    fhdr->sdma1.ucode_change_version = 0;
+    fhdr->sdma1.jt_offset = (expected_size & ~0xfff) >> 2;
+    fhdr->sdma1.jt_size = (expected_size & 0xfff) >> 2;
+
+    fhdr->crc32 = crc32(0, fhdr->raw, sizeof(fhdr->raw) + expected_size);
+    return 1;
+}
+
+static const u32 pfp_nop_handler[] = {
     0xdc120000, //     mov r4, ctr
     0x31144000, //     seteq r5, r4, #0x4000
     0x95400009, //     cbz r5, l0
@@ -130,17 +223,55 @@ u32 nop_handler[] = {
     0x88000000, //     btab
 };
 
-#define PACKET_TYPE_NOP 0x10
-#define NOP_START 0xff0
+static const u32 ce_nop_handler[] = {
+    0xdc120000, //     mov r4, ctr
+    0x31144000, //     seteq r5, r4, #0x4000
+    0x95400009, //     cbz r5, l0
+    0xc420000c, //     ldw r8, [r0, #0xc]
+    0xdc030000, //     mov ctr, r0
+    0xcc00002f, //     stw r0, [r0, #0x2f]
+    0xcc200012, //     stw r0, [r8, #0x12]
+    0xc424007e, //     ldw r9, [r0, #0x7e]
+    0x96400000, // l1: cbz r9, l1
+    0x7c408001, //     mov r2, r1
+    0x88000000, //     btab
+    0xd440007f, // l0: stm r1, [r0, #0x7f]
+    0x7c408001, //     mov r2, r1
+    0x88000000, //     btab
+};
 
-static void patch_pfp(u8 *pfp) {
-    copy_swab(&pfp[4 * NOP_START], nop_handler, sizeof(nop_handler));
+static const u32 mec_nop_handler[] = {
+    0xdc120000, //     mov r4, ctr
+    0x31144000, //     seteq r5, r4, #0x4000
+    0x95400009, //     cbz r5, l0
+    0xc43c000c, //     ldw r15, [r0, #0x9]
+    0xdc030000, //     mov ctr, r0
+    0xcc00002b, //     stw r0, [r0, #0x2b]
+    0xcc3c000d, //     stw r0, [r15, #0xd]
+    0xc424007e, //     ldw r9, [r0, #0x7e]
+    0x96400000, // l1: cbz r9, l1
+    0x7c408001, //     mov r2, r1
+    0x88000000, //     btab
+    0xd440007f, // l0: stm r1, [r0, #0x7f]
+    0x7c408001, //     mov r2, r1
+    0x88000000, //     btab
+};
+
+#define PACKET_TYPE_NOP 0x10
+
+static void patch_fw(void *p, const u32 *handler, int handler_size) {
+    int size = ((struct firmware_header*)p)->ucode_size_bytes;
+    int code_size = (size & ~0xfff) / 4;
+    int nop_start = code_size - 0x10;
+
+    u32 *fw = p + sizeof(struct firmware_header);
+    kern.printf("NOP handler at 0x%x\n", nop_start);
+    memcpy(&fw[nop_start], handler, handler_size);
 
     // patch the branch table entry
-    for(int off = 4 * 0x1000; off < FW_PFP_SIZE; off += 4) {
-        if (pfp[off] == 0 && pfp[off + 1] == PACKET_TYPE_NOP) {
-            pfp[off+2] = NOP_START >> 8;
-            pfp[off+3] = NOP_START & 0xff;
+    for (int off = code_size; off < size/4; off++) {
+        if ((fw[off] >> 16) == PACKET_TYPE_NOP) {
+            fw[off] = (PACKET_TYPE_NOP << 16) | nop_start;
         }
     }
 }
@@ -159,25 +290,46 @@ ssize_t firmware_extract(void *dest)
     cpio_hdr(&p, "lib", DIR, 0);
     cpio_hdr(&p, "lib/firmware", DIR, 0);
     cpio_hdr(&p, "lib/firmware/radeon", DIR, 0);
-    cpio_hdr(&p, "lib/firmware/radeon/LIVERPOOL_ce.bin", FILE, FW_CE_SIZE);
-    if (!copy_firmware(&p, "CE", info->ce, FW_CE_SIZE))
-        return -1;
-    cpio_hdr(&p, "lib/firmware/radeon/LIVERPOOL_me.bin", FILE, FW_ME_SIZE);
-    if (!copy_firmware(&p, "ME", info->me, FW_ME_SIZE))
-        return -1;
-    cpio_hdr(&p, "lib/firmware/radeon/LIVERPOOL_mec.bin", FILE, FW_MEC_SIZE);
-    if (!copy_firmware(&p, "MEC", info->mec1, FW_MEC_SIZE))
-        return -1;
-    cpio_hdr(&p, "lib/firmware/radeon/LIVERPOOL_pfp.bin", FILE, FW_PFP_SIZE);
+
+    cpio_hdr(&p, "lib/firmware/radeon/liverpool_pfp.bin", FILE, FW_HEADER_SIZE + FW_PFP_SIZE);
     u8 *pfp = p;
-    if (!copy_firmware(&p, "PFP", info->pfp, FW_PFP_SIZE))
+    if (!copy_gfx_firmware(&p, "PFP", info->pfp, FW_PFP_SIZE))
         return -1;
-    patch_pfp(pfp);
-    cpio_hdr(&p, "lib/firmware/radeon/LIVERPOOL_rlc.bin", FILE, FW_RLC_SIZE);
-    if (!copy_firmware(&p, "RLC", info->rlc, FW_RLC_SIZE))
+    patch_fw(pfp, pfp_nop_handler, sizeof(pfp_nop_handler));
+
+    cpio_hdr(&p, "lib/firmware/radeon/liverpool_me.bin", FILE, FW_HEADER_SIZE + FW_ME_SIZE);
+    if (!copy_gfx_firmware(&p, "ME", info->me, FW_ME_SIZE))
         return -1;
-    cpio_hdr(&p, "lib/firmware/radeon/LIVERPOOL_sdma.bin", FILE, FW_SDMA_SIZE);
-    if (!copy_firmware(&p, "SDMA", info->sdma1, FW_SDMA_SIZE))
+
+    cpio_hdr(&p, "lib/firmware/radeon/liverpool_ce.bin", FILE, FW_HEADER_SIZE + FW_CE_SIZE);
+    u8 *ce = p;
+    if (!copy_gfx_firmware(&p, "CE", info->ce, FW_CE_SIZE))
+        return -1;
+    patch_fw(ce, ce_nop_handler, sizeof(ce_nop_handler));
+
+    cpio_hdr(&p, "lib/firmware/radeon/liverpool_mec.bin", FILE, FW_HEADER_SIZE + FW_MEC_SIZE);
+    u8 *mec1 = p;
+    if (!copy_gfx_firmware(&p, "MEC", info->mec1, FW_MEC_SIZE))
+        return -1;
+    patch_fw(mec1, mec_nop_handler, sizeof(mec_nop_handler));
+
+    cpio_hdr(&p, "lib/firmware/radeon/liverpool_mec2.bin", FILE, FW_HEADER_SIZE + FW_MEC2_SIZE);
+    u8 *mec2 = p;
+    if (!copy_gfx_firmware(&p, "MEC2", info->mec2, FW_MEC2_SIZE))
+        return -1;
+    patch_fw(mec2, mec_nop_handler, sizeof(mec_nop_handler));
+
+    cpio_hdr(&p, "lib/firmware/radeon/liverpool_rlc.bin", FILE, FW_HEADER_SIZE + FW_RLC_SIZE);
+    if (!copy_rlc_firmware(&p, "RLC", info->rlc, FW_RLC_SIZE))
+        return -1;
+
+    cpio_hdr(&p, "lib/firmware/radeon/liverpool_sdma.bin", FILE, FW_HEADER_SIZE + FW_SDMA_SIZE);
+    if (!copy_sdma_firmware(&p, "SDMA", info->sdma0, FW_SDMA_SIZE, 0))
+        return -1;
+    cpio_hdr(&p, "TRAILER!!!", FILE, 0);
+
+    cpio_hdr(&p, "lib/firmware/radeon/liverpool_sdma1.bin", FILE, FW_HEADER_SIZE + FW_SDMA1_SIZE);
+    if (!copy_sdma_firmware(&p, "SDMA1", info->sdma1, FW_SDMA_SIZE, 1))
         return -1;
     cpio_hdr(&p, "TRAILER!!!", FILE, 0);
 

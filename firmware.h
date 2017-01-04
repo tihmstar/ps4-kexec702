@@ -17,13 +17,16 @@
 #define FW_CE_SIZE 8576
 #define FW_ME_SIZE 16768
 #define FW_MEC_SIZE 16768
+#define FW_MEC2_SIZE 16768
 #define FW_PFP_SIZE 16768
 #define FW_RLC_SIZE 6144
 #define FW_SDMA_SIZE 4200
+#define FW_SDMA1_SIZE 4200
 /* sizes for gladius
 #define FW_CE_SIZE (0x860*4)
 #define FW_ME_SIZE (0x1060*4)
 #define FW_MEC_SIZE (0x1060*4)
+#define FW_MEC2_SIZE (0x1060*4)
 #define FW_PFP_SIZE (0x1060*4)
 #define FW_RLC_SIZE (0x800*4)
 #define FW_SDMA_SIZE (0x41a*4)
@@ -32,10 +35,13 @@
 // Conservative value (max 113 bytes plus name size plus alignment)
 #define CPIO_HEADER_SIZE 256
 
-// Leave space for 16 files (currently 10)
+#define FW_HEADER_SIZE 256
+
+// Leave space for 16 files (currently 12)
 #define FW_CPIO_SIZE ( (CPIO_HEADER_SIZE * 16) + FW_CE_SIZE + FW_ME_SIZE + \
-                       FW_MEC_SIZE + FW_PFP_SIZE + FW_RLC_SIZE + \
-                       FW_SDMA_SIZE)
+                       FW_MEC_SIZE + FW_MEC2_SIZE + FW_PFP_SIZE + \
+                       FW_RLC_SIZE + FW_SDMA_SIZE + FW_SDMA1_SIZE + \
+                       FW_HEADER_SIZE * 8)
 
 ssize_t firmware_extract(void *dest);
 
