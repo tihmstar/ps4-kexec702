@@ -16,7 +16,7 @@
 #include "crc32.h"
 
 #define DIR  0040755
-#define FILE 0100755
+#define FILE 0100644
 
 struct firmware_header {
     u32 size_bytes;
