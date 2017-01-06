@@ -192,7 +192,7 @@ int copy_gfx_firmware(u8 **p, const char *name, struct fw_header_t *hdr, size_t 
     fhdr->ip_version_major = 7;
     fhdr->ip_version_minor = 2;
     fhdr->header_size_bytes = offsetof(struct firmware_header, gfx1.end);
-    fhdr->gfx1.ucode_feature_version = 27;
+    fhdr->gfx1.ucode_feature_version = 21;
     fhdr->gfx1.jt_offset = (expected_size & ~0xfff) >> 2;
     fhdr->gfx1.jt_size = (expected_size & 0xfff) >> 2;
 

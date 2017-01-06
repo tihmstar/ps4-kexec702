@@ -20,6 +20,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     size_t initramfs_size = uap->initramfs_size;
     void *image = NULL;
     void *initramfs = NULL;
+    size_t firmware_size = 0;
     struct boot_params *bp = NULL;
     size_t cmd_line_maxlen = 0;
     char *cmd_line = NULL;
@@ -55,20 +56,22 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
         err = 12; // ENOMEM
         goto cleanup;
     }
+
+    err = firmware_extract(((u8*)initramfs));
+    if (err < 0) {
+        kern.printf("Failed to extract GPU firmware - continuing anyway\n");
+    } else {
+        firmware_size = err;
+    }
+
     if (initramfs_size) {
-        err = kern.copyin(uap->initramfs, initramfs, initramfs_size);
+        err = kern.copyin(uap->initramfs, initramfs + firmware_size, initramfs_size);
         if (err) {
             kern.printf("Failed to copy in initramfs\n");
             goto cleanup;
         }
     }
-
-    err = firmware_extract(((u8*)initramfs) + initramfs_size);
-    if (err < 0) {
-        kern.printf("Failed to extract GPU firmware - continuing anyway\n");
-    } else {
-        initramfs_size += err;
-    }
+    initramfs_size += firmware_size;
 
     // Copy in cmdline
     cmd_line_maxlen = ((struct boot_params *)image)->hdr.cmdline_size + 1;
