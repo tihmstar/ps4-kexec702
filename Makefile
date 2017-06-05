@@ -1,3 +1,8 @@
+TOOLCHAIN_PREFIX ?=
+CC = $(TOOLCHAIN_PREFIX)gcc
+AR = $(TOOLCHAIN_PREFIX)ar
+OBJCOPY = $(TOOLCHAIN_PREFIX)objcopy
+
 CFLAGS=$(CFLAG)
 CFLAGS += -march=btver2 -masm=intel -std=gnu11 -ffreestanding -fno-common \
 	-fPIE -pie -fomit-frame-pointer -nostdlib -nostdinc \
@@ -14,19 +19,19 @@ DEPS := $(OBJS) $(SOURCES) $(INCLUDES:%=$(INC_DIR)/%) Makefile kexec.ld
 all: libkexec.a kexec.bin
 
 %.o: %.c *.h
-	gcc -c $(CFLAGS) -o $@ $<
+	$(CC) -c $(CFLAGS) -o $@ $<
 
 %.o: %.S
-	gcc -c $(CFLAGS) -o $@ $<
+	$(CC) -c $(CFLAGS) -o $@ $<
 
 libkexec.a: $(OBJS)
-	ar -rc $@ $(OBJS)
+	$(AR) -rc $@ $(OBJS)
 
 kexec.elf: libkexec.a kexec.ld
-	gcc $(CFLAGS) -o $@ libkexec.a
+	$(CC) $(CFLAGS) -o $@ libkexec.a
 
 %.bin: %.elf
-	objcopy -O binary $< $@
+	$(OBJCOPY) -O binary $< $@
 
 clean:
 	rm -f libkexec.a kexec.elf kexec.bin $(OBJS)

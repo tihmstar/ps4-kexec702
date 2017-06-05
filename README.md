@@ -19,6 +19,11 @@ all pages covered by that range as RWX (to make global variable accesses work).
 Alternatively, you can add `-DDO_NOT_REMAP_RWX` to CFLAGS to disable this
 feature, if you have already taken care of page permissions for the code.
 
+If you use a compiler toolchain that have a special prefix you can declare it
+by passing TOOLCHAIN_PREFIX option to the Makefile like this:
+
+    make TOOLCHAIN_PREFIX='amd64-marcel-freebsd9.0-'
+
 ## Usage
 
 The code is designed to be completely standalone. There is a single entry point:
@@ -40,7 +45,7 @@ hardcode offsets for some symbols. Currently we use the `early_printf`
 given by user to caculate the base address of kernel, then relocate all the
 symbols from the kernel base. You could enable this feature like this:
 
-	make CFLAG='-DPS4_4_00 -DKASLR -DNO_SYMTAB'
+    make CFLAG='-DPS4_4_00 -DKASLR -DNO_SYMTAB'
 
 If you do not want to call the syscall from userspace, you can pass the address
 of a function pointer as `sys_kexec_ptr`. `kexec_init` will write to it the
