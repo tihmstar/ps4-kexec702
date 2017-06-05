@@ -111,6 +111,6 @@ void kernel_remap(void *start, void *end, int perm);
 void kernel_syscall_install(int num, void *call, int narg);
 int kernel_hook_install(void *target, void *hook);
 
-int kernel_init(void);
+int kernel_init(void *early_printf);
 
 #endif

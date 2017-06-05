@@ -261,9 +261,13 @@ static int patch_pmap_check(void)
 }
 #endif
 
-int kernel_init(void)
+int kernel_init(void *_early_printf)
 {
     int rv = -1;
+
+    if (_early_printf)
+        early_printf = _early_printf;
+
     eprintf("kernel_init()\n");
 
 #ifdef KASLR

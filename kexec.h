@@ -29,6 +29,8 @@ typedef int (*sys_kexec_t)(void *td, struct sys_kexec_args *uap);
 // Note: td is unused, you can pass NULL if you call this directly.
 int sys_kexec(void *td, struct sys_kexec_args *uap);
 
+int kernel_init(void *early_printf);
+
 int kexec_init(void *early_printf, sys_kexec_t *sys_kexec_ptr)
     __attribute__ ((section (".init")));
 

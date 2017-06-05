@@ -25,8 +25,8 @@ static int k_copyin(const void *uaddr, void *kaddr, size_t len)
 
 static int k_copyinstr(const void *uaddr, void *kaddr, size_t len, size_t *done)
 {
-    const char* ustr = (const char*)uaddr;
-    char* kstr = (char*)kaddr;
+    const char *ustr = (const char*)uaddr;
+    char *kstr = (char*)kaddr;
     size_t ret;
     if (!uaddr || !kaddr)
         return EFAULT;
@@ -57,7 +57,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     int (*copyinstr)(const void *uaddr, void *kaddr, size_t len, size_t *done) = td ? kern.copyinstr : k_copyinstr;
 
     kern.printf("sys_kexec invoked\n");
-    kern.printf("sys_kexec(%p, %zud, %p, %zud, \"%s\")\n", uap->image,
+    kern.printf("sys_kexec(%p, %zu, %p, %zu, \"%s\")\n", uap->image,
         uap->image_size, uap->initramfs, uap->initramfs_size, uap->cmd_line);
 
     // Look up our shutdown hook point
@@ -120,8 +120,8 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     cmd_line[cmd_line_maxlen - 1] = 0;
 
     kern.printf("\nkexec parameters:\n");
-    kern.printf("    Kernel image size:   %zud bytes\n", uap->image_size);
-    kern.printf("    Initramfs size:      %zud bytes (%zud from user)\n",
+    kern.printf("    Kernel image size:   %zu bytes\n", uap->image_size);
+    kern.printf("    Initramfs size:      %zu bytes (%zu from user)\n",
                 initramfs_size, uap->initramfs_size);
     kern.printf("    Kernel command line: %s\n", cmd_line);
     kern.printf("    Kernel image buffer: %p\n", image);
@@ -171,10 +171,7 @@ int kexec_init(void *_early_printf, sys_kexec_t *sys_kexec_ptr)
     u64 flags = intr_disable();
     u64 wp = write_protect_disable();
 
-    if (_early_printf)
-        early_printf = _early_printf;
-
-    if (kernel_init() < 0) {
+    if (kernel_init(_early_printf) < 0) {
         rv = -1;
         goto cleanup;
     }
