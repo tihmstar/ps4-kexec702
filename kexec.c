@@ -15,13 +15,6 @@
 #include "firmware.h"
 #include "string.h"
 
-#ifndef EFAULT
-#define EFAULT 14
-#endif
-#ifndef ENAMETOOLONG
-#define ENAMETOOLONG 63
-#endif
-
 static int k_copyin(const void *uaddr, void *kaddr, size_t len)
 {
     if (!uaddr || !kaddr)
@@ -70,7 +63,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     // Look up our shutdown hook point
     void *icc_query_nowait = kern.icc_query_nowait;
     if (!icc_query_nowait) {
-        err = 2; // ENOENT
+        err = ENOENT;
         goto cleanup;
     }
 
@@ -78,7 +71,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     image = kernel_alloc_contig(uap->image_size);
     if (!image) {
         kern.printf("Failed to allocate image\n");
-        err = 12; // ENOMEM
+        err = ENOMEM;
         goto cleanup;
     }
     err = copyin(uap->image, image, uap->image_size);
@@ -91,7 +84,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     initramfs = kernel_alloc_contig(initramfs_size + FW_CPIO_SIZE);
     if (!initramfs) {
         kern.printf("Failed to allocate initramfs\n");
-        err = 12; // ENOMEM
+        err = ENOMEM;
         goto cleanup;
     }
 
@@ -116,7 +109,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     cmd_line = kernel_alloc_contig(cmd_line_maxlen);
     if (!cmd_line) {
         kern.printf("Failed to allocate cmdline\n");
-        err = 12;
+        err = ENOMEM;
         goto cleanup;
     }
     err = copyinstr(uap->cmd_line, cmd_line, cmd_line_maxlen, NULL);
@@ -138,7 +131,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     bp = kernel_alloc_contig(sizeof(*bp));
     if (!bp) {
         kern.printf("Failed to allocate bp\n");
-        err = 12;
+        err = ENOMEM;
         goto cleanup;
     }
 
@@ -152,7 +145,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     // Hook the final ICC shutdown function
     if (!kernel_hook_install(hook_icc_query_nowait, icc_query_nowait)) {
         kern.printf("Failed to install shutdown hook\n");
-        err = 22;
+        err = EINVAL;
         goto cleanup;
     }
 

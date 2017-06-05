@@ -42,4 +42,10 @@ typedef s64 off_t;
 
 #define offsetof(type, member)  __builtin_offsetof (type, member)
 
+#define ENOENT 2
+#define ENOMEM 12
+#define EFAULT 14
+#define EINVAL 22
+#define ENAMETOOLONG 63
+
 #endif
