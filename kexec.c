@@ -13,6 +13,41 @@
 #include "x86.h"
 #include "kexec.h"
 #include "firmware.h"
+#include "string.h"
+
+#ifndef EFAULT
+#define EFAULT 14
+#endif
+#ifndef ENAMETOOLONG
+#define ENAMETOOLONG 63
+#endif
+
+static int k_copyin(const void *uaddr, void *kaddr, size_t len)
+{
+    if (!uaddr || !kaddr)
+        return EFAULT;
+    memcpy(kaddr, uaddr, len);
+    return 0;
+}
+
+static int k_copyinstr(const void *uaddr, void *kaddr, size_t len, size_t *done)
+{
+    const char* ustr = (const char*)uaddr;
+    char* kstr = (char*)kaddr;
+    size_t ret;
+    if (!uaddr || !kaddr)
+        return EFAULT;
+    ret = strlcpy(kstr, ustr, len);
+    if (ret >= len) {
+        if (done)
+            *done = len;
+        return ENAMETOOLONG;
+    } else {
+        if (done)
+            *done = ret + 1;
+    }
+    return 0;
+}
 
 int sys_kexec(void *td, struct sys_kexec_args *uap)
 {
@@ -24,6 +59,9 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     struct boot_params *bp = NULL;
     size_t cmd_line_maxlen = 0;
     char *cmd_line = NULL;
+
+    int (*copyin)(const void *uaddr, void *kaddr, size_t len) = td ? kern.copyin : k_copyin;
+    int (*copyinstr)(const void *uaddr, void *kaddr, size_t len, size_t *done) = td ? kern.copyinstr : k_copyinstr;
 
     kern.printf("sys_kexec invoked\n");
     kern.printf("sys_kexec(%p, %zud, %p, %zud, \"%s\")\n", uap->image,
@@ -43,7 +81,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
         err = 12; // ENOMEM
         goto cleanup;
     }
-    err = kern.copyin(uap->image, image, uap->image_size);
+    err = copyin(uap->image, image, uap->image_size);
     if (err) {
         kern.printf("Failed to copy in image\n");
         goto cleanup;
@@ -65,7 +103,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     }
 
     if (initramfs_size) {
-        err = kern.copyin(uap->initramfs, initramfs + firmware_size, initramfs_size);
+        err = copyin(uap->initramfs, initramfs + firmware_size, initramfs_size);
         if (err) {
             kern.printf("Failed to copy in initramfs\n");
             goto cleanup;
@@ -81,7 +119,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
         err = 12;
         goto cleanup;
     }
-    err = kern.copyinstr(uap->cmd_line, cmd_line, cmd_line_maxlen, NULL);
+    err = copyinstr(uap->cmd_line, cmd_line, cmd_line_maxlen, NULL);
     if (err) {
         kern.printf("Failed to copy in cmdline\n");
         goto cleanup;
