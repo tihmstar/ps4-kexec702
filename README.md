@@ -19,6 +19,11 @@ all pages covered by that range as RWX (to make global variable accesses work).
 Alternatively, you can add `-DDO_NOT_REMAP_RWX` to CFLAGS to disable this
 feature, if you have already taken care of page permissions for the code.
 
+If you use a compiler toolchain that have a special prefix you can declare it
+by passing TOOLCHAIN_PREFIX option to the Makefile like this:
+
+    make TOOLCHAIN_PREFIX='amd64-marcel-freebsd9.0-'
+
 ## Usage
 
 The code is designed to be completely standalone. There is a single entry point:
@@ -40,14 +45,12 @@ hardcode offsets for some symbols. Currently we use the `early_printf`
 given by user to caculate the base address of kernel, then relocate all the
 symbols from the kernel base. You could enable this feature like this:
 
-	make CFLAG='-DPS4_4_00 -DKASLR -DNO_SYMTAB'
+    make CFLAG='-DPS4_4_00 -DKASLR -DNO_SYMTAB'
 
 If you do not want to call the syscall from userspace, you can pass the address
 of a function pointer as `sys_kexec_ptr`. `kexec_init` will write to it the
 address of `sys_kexec`, so you can invoke it manually (see kexec.h for
-its prototype and how the arguments are passed). Note that the data buffers
-still need to be userspace pointers in this case, unless you modify kexec.c to
-use different copy functions.
+its prototype and how the arguments are passed).
 
 If you are using the standalone kexec.bin blob, then the `kexec_init` function
 is always located at offset 0, so simply call the base address of the blob.
@@ -60,7 +63,7 @@ line string. From userspace, this looks like this:
     int kexec(void *kernel_image, size_t image_size,
               void *initramfs, size_t initramfs_size,
               const char *cmdline);
-    
+
     // syscall() usage:
     syscall(153, kernel_image, image_size, initramfs, initramfs_size, cmdline);
 
@@ -101,11 +104,11 @@ boot. To cover that case, add some code to your initramfs `/init` script to
 copy the firmware to a tmpfs mounted on the real filesystem:
 
     # assuming real root FS is mounted on /mnt
-    
+
     mkdir -p /mnt/lib/firmware/radeon
     mount -t tmpfs none /mnt/lib/firmware/radeon
     cp /lib/firmware/radeon/* /mnt/lib/firmware/radeon/
-    
+
     # now switch_root to /mnt
 
 This avoids having to permanently store copies of the Radeon firmware, which

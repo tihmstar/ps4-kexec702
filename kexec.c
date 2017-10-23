@@ -13,6 +13,34 @@
 #include "x86.h"
 #include "kexec.h"
 #include "firmware.h"
+#include "string.h"
+
+static int k_copyin(const void *uaddr, void *kaddr, size_t len)
+{
+    if (!uaddr || !kaddr)
+        return EFAULT;
+    memcpy(kaddr, uaddr, len);
+    return 0;
+}
+
+static int k_copyinstr(const void *uaddr, void *kaddr, size_t len, size_t *done)
+{
+    const char *ustr = (const char*)uaddr;
+    char *kstr = (char*)kaddr;
+    size_t ret;
+    if (!uaddr || !kaddr)
+        return EFAULT;
+    ret = strlcpy(kstr, ustr, len);
+    if (ret >= len) {
+        if (done)
+            *done = len;
+        return ENAMETOOLONG;
+    } else {
+        if (done)
+            *done = ret + 1;
+    }
+    return 0;
+}
 
 int sys_kexec(void *td, struct sys_kexec_args *uap)
 {
@@ -25,14 +53,17 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     size_t cmd_line_maxlen = 0;
     char *cmd_line = NULL;
 
+    int (*copyin)(const void *uaddr, void *kaddr, size_t len) = td ? kern.copyin : k_copyin;
+    int (*copyinstr)(const void *uaddr, void *kaddr, size_t len, size_t *done) = td ? kern.copyinstr : k_copyinstr;
+
     kern.printf("sys_kexec invoked\n");
-    kern.printf("sys_kexec(%p, %zud, %p, %zud, \"%s\")\n", uap->image,
+    kern.printf("sys_kexec(%p, %zu, %p, %zu, \"%s\")\n", uap->image,
         uap->image_size, uap->initramfs, uap->initramfs_size, uap->cmd_line);
 
     // Look up our shutdown hook point
     void *icc_query_nowait = kern.icc_query_nowait;
     if (!icc_query_nowait) {
-        err = 2; // ENOENT
+        err = ENOENT;
         goto cleanup;
     }
 
@@ -40,10 +71,10 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     image = kernel_alloc_contig(uap->image_size);
     if (!image) {
         kern.printf("Failed to allocate image\n");
-        err = 12; // ENOMEM
+        err = ENOMEM;
         goto cleanup;
     }
-    err = kern.copyin(uap->image, image, uap->image_size);
+    err = copyin(uap->image, image, uap->image_size);
     if (err) {
         kern.printf("Failed to copy in image\n");
         goto cleanup;
@@ -53,7 +84,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     initramfs = kernel_alloc_contig(initramfs_size + FW_CPIO_SIZE);
     if (!initramfs) {
         kern.printf("Failed to allocate initramfs\n");
-        err = 12; // ENOMEM
+        err = ENOMEM;
         goto cleanup;
     }
 
@@ -65,7 +96,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     }
 
     if (initramfs_size) {
-        err = kern.copyin(uap->initramfs, initramfs + firmware_size, initramfs_size);
+        err = copyin(uap->initramfs, initramfs + firmware_size, initramfs_size);
         if (err) {
             kern.printf("Failed to copy in initramfs\n");
             goto cleanup;
@@ -78,10 +109,10 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     cmd_line = kernel_alloc_contig(cmd_line_maxlen);
     if (!cmd_line) {
         kern.printf("Failed to allocate cmdline\n");
-        err = 12;
+        err = ENOMEM;
         goto cleanup;
     }
-    err = kern.copyinstr(uap->cmd_line, cmd_line, cmd_line_maxlen, NULL);
+    err = copyinstr(uap->cmd_line, cmd_line, cmd_line_maxlen, NULL);
     if (err) {
         kern.printf("Failed to copy in cmdline\n");
         goto cleanup;
@@ -89,8 +120,8 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     cmd_line[cmd_line_maxlen - 1] = 0;
 
     kern.printf("\nkexec parameters:\n");
-    kern.printf("    Kernel image size:   %zud bytes\n", uap->image_size);
-    kern.printf("    Initramfs size:      %zud bytes (%zud from user)\n",
+    kern.printf("    Kernel image size:   %zu bytes\n", uap->image_size);
+    kern.printf("    Initramfs size:      %zu bytes (%zu from user)\n",
                 initramfs_size, uap->initramfs_size);
     kern.printf("    Kernel command line: %s\n", cmd_line);
     kern.printf("    Kernel image buffer: %p\n", image);
@@ -100,7 +131,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     bp = kernel_alloc_contig(sizeof(*bp));
     if (!bp) {
         kern.printf("Failed to allocate bp\n");
-        err = 12;
+        err = ENOMEM;
         goto cleanup;
     }
 
@@ -114,7 +145,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     // Hook the final ICC shutdown function
     if (!kernel_hook_install(hook_icc_query_nowait, icc_query_nowait)) {
         kern.printf("Failed to install shutdown hook\n");
-        err = 22;
+        err = EINVAL;
         goto cleanup;
     }
 
@@ -140,10 +171,7 @@ int kexec_init(void *_early_printf, sys_kexec_t *sys_kexec_ptr)
     u64 flags = intr_disable();
     u64 wp = write_protect_disable();
 
-    if (_early_printf)
-        early_printf = _early_printf;
-
-    if (kernel_init() < 0) {
+    if (kernel_init(_early_printf) < 0) {
         rv = -1;
         goto cleanup;
     }
