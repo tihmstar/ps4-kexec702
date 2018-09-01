@@ -112,6 +112,7 @@ void *kernel_resolve(const char *name)
 static int resolve_symbols(void)
 {
     RESOLVE(printf);
+    RESOLVE(snprintf);
     early_printf = kern.printf;
     RESOLVE(copyin);
     RESOLVE(copyout);
@@ -251,7 +252,7 @@ static int patch_pmap_check(void)
     for (p = (u8*)kern.pmap_protect;
          p < ((u8*)kern.pmap_protect + 0x500); p++) {
         #ifdef PS4_5_05
-        if (!memcmp(p, "\xB8\x06\x00\x00\x00\xC4", 6)) { 
+        if (!memcmp(p, "\xB8\x06\x00\x00\x00\xC4", 6)) {
             p[1] = 0;
             kern.printf("pmap_protect patch successful (found at %p)\n", p);
             return 1;

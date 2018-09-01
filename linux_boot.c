@@ -21,6 +21,7 @@ void uart_write_byte(u8 b);
 static u64 vram_base = 0x100000000;
 // Current code assumes it's a power of two.
 static u64 vram_size = 1024 * 1024 * 1024;
+static int vram_gb = 3;
 
 #define DM_PML4_BASE ((kern.dmap_base >> PML4SHIFT) & 0x1ff)
 
@@ -100,8 +101,8 @@ void prepare_boot_params(struct boot_params *bp, u8 *linux_image)
     bp_add_smap_entry(bp, 0x00e0000000, 0x0018000000, SMAP_TYPE_RESERVED);
     bp_add_smap_entry(bp, 0x00f8000000, 0x0004000000, SMAP_TYPE_RESERVED);
     // Instead, carve out VRAM from the beginning of high memory
-    bp_add_smap_entry(bp, vram_base, vram_size, SMAP_TYPE_RESERVED);
-    bp_add_smap_entry(bp, vram_base + vram_size, 0x017f000000 - vram_size,
+    bp_add_smap_entry(bp, vram_base, vram_gb * vram_size, SMAP_TYPE_RESERVED);
+    bp_add_smap_entry(bp, vram_base + vram_gb * vram_size, 0x017f000000 - vram_gb * vram_size,
                       SMAP_TYPE_MEMORY);
 }
 
@@ -116,7 +117,7 @@ static void configure_vram(void)
 {
     u64 mmio_base = 0xe4800000;
     u64 fb_base = 0x0f00000000;
-    u64 fb_top = fb_base + vram_size - 1;
+    u64 fb_top = fb_base + vram_gb * vram_size - 1;
 
     WR32(mmio_base + MC_VM_FB_LOCATION, 0);
     WR32(mmio_base + HDP_NONSURFACE_BASE, 0);
@@ -125,7 +126,7 @@ static void configure_vram(void)
          ((fb_top >> 24) << 16) | (fb_base >> 24));
     WR32(mmio_base + MC_VM_FB_OFFSET, vram_base >> 22);
     WR32(mmio_base + HDP_NONSURFACE_BASE, fb_base >> 8);
-    WR32(mmio_base + CONFIG_MEMSIZE, vram_size >> 20);
+    WR32(mmio_base + CONFIG_MEMSIZE, vram_gb * vram_size >> 20);
 }
 
 #define IA32_MTRR_DEF_TYPE 0x2ff
@@ -153,7 +154,7 @@ static void setup_mtrr(void)
     wrmsr(MTRR_MASK(2), 0xff80000800);
     // VRAM (4GB-4GB+vram_size) = UC
     wrmsr(MTRR_BASE(3), 0x0100000000);
-    wrmsr(MTRR_MASK(3), (0xffffffffff - vram_size + 1) | 0x800);
+    wrmsr(MTRR_MASK(3), (0xffffffffff - vram_gb * vram_size + 1) | 0x800);
 
     wbinvd();
     cr3_write(cr3_read()); // TLB flush

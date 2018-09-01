@@ -153,6 +153,7 @@
 #elif defined PS4_5_05
 
 #define kern_off_printf 0x436040
+#define kern_off_snprintf 0x436350
 #define kern_off_copyin 0x1ea710
 #define kern_off_copyout 0x1ea630
 #define kern_off_copyinstr 0x1eab40

@@ -57,7 +57,7 @@ struct ksym_t {
     uintptr_t dmap_base;
 
     int (*printf)(const char *fmt, ...);
-
+    int (*snprintf)(const char *fmt, ...);
     int (*copyin)(const void *uaddr, void *kaddr, size_t len);
     int (*copyout)(const void *kaddr, void *uaddr, size_t len);
     int (*copyinstr)(const void *uaddr, void *kaddr, size_t len, size_t *done);

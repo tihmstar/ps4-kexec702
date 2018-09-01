@@ -325,6 +325,14 @@ const struct fw_expected_sizes_t *get_fw_expected_sizes() {
     }
 }
 
+const char * get_gpu_name() {
+  if (kern.gpu_devid_is_9924 && kern.gpu_devid_is_9924()) {
+      return "gladius";
+  } else {
+      return "liverpool";
+  }
+}
+
 ssize_t firmware_extract(void *dest)
 {
     u8 *p = dest;
@@ -339,46 +347,79 @@ ssize_t firmware_extract(void *dest)
 
     cpio_hdr(&p, "lib", DIR, 0);
     cpio_hdr(&p, "lib/firmware", DIR, 0);
-    cpio_hdr(&p, "lib/firmware/radeon", DIR, 0);
 
-    cpio_hdr(&p, "lib/firmware/radeon/liverpool_pfp.bin", FILE, FW_HEADER_SIZE + fw_sizes->pfp);
+    char dir[7];
+    if (kern.gpu_devid_is_9924 && kern.gpu_devid_is_9924())
+      kern.snprintf(dir, sizeof(dir), "amdgpu");
+    else
+      kern.snprintf(dir, sizeof(dir), "radeon");
+
+    char dir_path[64];
+    kern.snprintf(dir_path, sizeof(dir_path), "lib/firmware/%s/", dir);
+    cpio_hdr(&p, dir_path, DIR, 0);
+
+    char pfp_path[64];
+    kern.snprintf(pfp_path, sizeof(pfp_path), "%s%s_pfp.bin", dir_path, get_gpu_name());
+    kern.printf("firmware_extract: Extract %s \n", pfp_path);
+    cpio_hdr(&p, pfp_path, FILE, FW_HEADER_SIZE + fw_sizes->pfp);
     u8 *pfp = p;
     if (!copy_gfx_firmware(&p, "PFP", info->pfp, fw_sizes->pfp))
         return -1;
     patch_fw(pfp, pfp_nop_handler, sizeof(pfp_nop_handler));
 
-    cpio_hdr(&p, "lib/firmware/radeon/liverpool_me.bin", FILE, FW_HEADER_SIZE + fw_sizes->me);
+    char me_path[64];
+    kern.snprintf(me_path, sizeof(me_path), "%s%s_me.bin", dir_path, get_gpu_name());
+    kern.printf("firmware_extract: Extract %s \n", me_path);
+    cpio_hdr(&p, me_path, FILE, FW_HEADER_SIZE + fw_sizes->me);
     if (!copy_gfx_firmware(&p, "ME", info->me, fw_sizes->me))
         return -1;
 
-    cpio_hdr(&p, "lib/firmware/radeon/liverpool_ce.bin", FILE, FW_HEADER_SIZE + fw_sizes->ce);
+    char ce_path[64];
+    kern.snprintf(ce_path, sizeof(ce_path), "%s%s_ce.bin", dir_path, get_gpu_name());
+    kern.printf("firmware_extract: Extract %s \n", ce_path);
+    cpio_hdr(&p, ce_path, FILE, FW_HEADER_SIZE + fw_sizes->ce);
     u8 *ce = p;
     if (!copy_gfx_firmware(&p, "CE", info->ce, fw_sizes->ce))
         return -1;
     patch_fw(ce, ce_nop_handler, sizeof(ce_nop_handler));
 
-    cpio_hdr(&p, "lib/firmware/radeon/liverpool_mec.bin", FILE, FW_HEADER_SIZE + fw_sizes->mec1);
+    char mec_path[64];
+    kern.snprintf(mec_path, sizeof(mec_path), "%s%s_mec.bin", dir_path, get_gpu_name());
+    kern.printf("firmware_extract: Extract %s \n", mec_path);
+    cpio_hdr(&p, mec_path, FILE, FW_HEADER_SIZE + fw_sizes->mec1);
     u8 *mec1 = p;
     if (!copy_gfx_firmware(&p, "MEC", info->mec1, fw_sizes->mec1))
         return -1;
     patch_fw(mec1, mec_nop_handler, sizeof(mec_nop_handler));
 
-    cpio_hdr(&p, "lib/firmware/radeon/liverpool_mec2.bin", FILE, FW_HEADER_SIZE + fw_sizes->mec2);
+    char mec2_path[64];
+    kern.snprintf(mec2_path, sizeof(mec2_path), "%s%s_mec2.bin", dir_path, get_gpu_name());
+    kern.printf("firmware_extract: Extract %s \n", mec2_path);
+    cpio_hdr(&p, mec2_path, FILE, FW_HEADER_SIZE + fw_sizes->mec2);
     u8 *mec2 = p;
     if (!copy_gfx_firmware(&p, "MEC2", info->mec2, fw_sizes->mec2))
         return -1;
     patch_fw(mec2, mec_nop_handler, sizeof(mec_nop_handler));
 
-    cpio_hdr(&p, "lib/firmware/radeon/liverpool_rlc.bin", FILE, FW_HEADER_SIZE + fw_sizes->rlc);
+    char rlc_path[64];
+    kern.snprintf(rlc_path, sizeof(rlc_path), "%s%s_rlc.bin", dir_path, get_gpu_name());
+    kern.printf("firmware_extract: Extract %s \n", rlc_path);
+    cpio_hdr(&p, rlc_path, FILE, FW_HEADER_SIZE + fw_sizes->rlc);
     if (!copy_rlc_firmware(&p, "RLC", info->rlc, fw_sizes->rlc))
         return -1;
 
-    cpio_hdr(&p, "lib/firmware/radeon/liverpool_sdma.bin", FILE, FW_HEADER_SIZE + fw_sizes->sdma0);
+    char sdma_path[64];
+    kern.snprintf(sdma_path, sizeof(sdma_path), "%s%s_sdma.bin", dir_path,  get_gpu_name());
+    kern.printf("firmware_extract: Extract %s \n", sdma_path);
+    cpio_hdr(&p, sdma_path, FILE, FW_HEADER_SIZE + fw_sizes->sdma0);
     if (!copy_sdma_firmware(&p, "SDMA", info->sdma0, fw_sizes->sdma0, 0))
         return -1;
     cpio_hdr(&p, "TRAILER!!!", FILE, 0);
 
-    cpio_hdr(&p, "lib/firmware/radeon/liverpool_sdma1.bin", FILE, FW_HEADER_SIZE + fw_sizes->sdma1);
+    char sdma1_path[64];
+    kern.snprintf(sdma1_path, sizeof(sdma1_path), "%s%s_sdma1.bin", dir_path,  get_gpu_name());
+    kern.printf("firmware_extract: Extract %s \n", sdma1_path);
+    cpio_hdr(&p, sdma1_path, FILE, FW_HEADER_SIZE + fw_sizes->sdma1);
     if (!copy_sdma_firmware(&p, "SDMA1", info->sdma1, fw_sizes->sdma1, 1))
         return -1;
     cpio_hdr(&p, "TRAILER!!!", FILE, 0);
