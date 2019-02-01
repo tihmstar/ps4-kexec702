@@ -86,6 +86,9 @@ struct ksym_t {
     void *Starsha_UcodeInfo;
     int (*gpu_devid_is_9924)();
     void *(*gc_get_fw_info)();
+    void *eap_hdd_key;
+    void *edid;
+    void (*wlanbt)(unsigned int state);
 };
 
 extern struct ksym_t kern;

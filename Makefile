@@ -5,7 +5,7 @@ OBJCOPY = $(TOOLCHAIN_PREFIX)objcopy
 
 CFLAGS=$(CFLAG)
 CFLAGS += -march=btver2 -masm=intel -std=gnu11 -ffreestanding -fno-common \
-	-fPIE -pie -fomit-frame-pointer -nostdlib -nostdinc \
+	-fPIE -pie -fno-stack-protector -fomit-frame-pointer -nostdlib -nostdinc \
 	-fno-asynchronous-unwind-tables \
 	-Os -Wall -Werror -Wl,--build-id=none,-T,kexec.ld,--nmagic \
 	-mcmodel=small -mno-red-zone

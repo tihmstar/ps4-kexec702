@@ -132,6 +132,9 @@ static int resolve_symbols(void)
     RESOLVE_NOERR(Starsha_UcodeInfo);
     RESOLVE_NOERR(gpu_devid_is_9924);
     RESOLVE_NOERR(gc_get_fw_info);
+    RESOLVE_NOERR(eap_hdd_key);
+    RESOLVE_NOERR(edid);
+    RESOLVE(wlanbt);
     return 1;
 }
 

@@ -21,7 +21,7 @@ void uart_write_byte(u8 b);
 static u64 vram_base = 0x100000000;
 // Current code assumes it's a power of two.
 static u64 vram_size = 1024 * 1024 * 1024;
-static int vram_gb = 3;
+static int vram_gb = 2;
 
 #define DM_PML4_BASE ((kern.dmap_base >> PML4SHIFT) & 0x1ff)
 
@@ -348,23 +348,30 @@ static void cpu_quiesce_gate(void *arg)
     uart_write_str("kexec: Reconfiguring VRAM...\n");
 
     configure_vram();
-
+	
     uart_write_str("kexec: Resetting GPU...\n");
 
     // Softreset GPU
-    *(volatile u64 *)PA_TO_DM(0xe480c300) = 0; // Halt RLC
     *(volatile u64 *)PA_TO_DM(0xe48086d8) = 0x15000000; // Halt CP blocks
     *(volatile u64 *)PA_TO_DM(0xe4808234) = 0x50000000; // Halt MEC
     *(volatile u64 *)PA_TO_DM(0xe480d048) = 1; // Halt SDMA0
-    *(volatile u64 *)PA_TO_DM(0xe480d848) = 1; // Halt SDMA1
-    *(volatile u64 *)PA_TO_DM(0xe4808020) |= 0x10003; // Softreset GFX/CP/RLC
-    udelay(50);
-    *(volatile u64 *)PA_TO_DM(0xe4808020) &= ~0x10003;
-    udelay(50);
+//  *(volatile u64 *)PA_TO_DM(0xe480d248) = 1; // Halt SDMA1 eeply
+	*(volatile u64 *)PA_TO_DM(0xe480d848) = 1; // Halt SDMA1
+	*(volatile u64 *)PA_TO_DM(0xe480c300) = 0; // Halt RLC
+	
+	*(volatile u64 *)PA_TO_DM(0xe480c1a8) &= ~0x180000; // CP_INT_CNTL_RING0 eeply
+
+//  *(volatile u64 *)PA_TO_DM(0xe4808020) |= 0x10003; // Softreset GFX/CP/RLC
+	*(volatile u64 *)PA_TO_DM(0xe4808020) |= 0x30005; // Softreset GFX/CP/RLC eeply
+	
+//    udelay(150);
+//  *(volatile u64 *)PA_TO_DM(0xe4808020) &= ~0x10003;
+	*(volatile u64 *)PA_TO_DM(0xe4808020) &= ~0x30005; //eeply
+//    udelay(150);
     *(volatile u64 *)PA_TO_DM(0xe4800e60) |= 0x00100140; // Softreset SDMA/GRBM
-    udelay(50);
+//    udelay(150);
     *(volatile u64 *)PA_TO_DM(0xe4800e60) &= ~0x00100140;
-    udelay(50);
+//    udelay(150);
 
     // Enable audio output
     *(volatile u64 *)PA_TO_DM(0xe4805e00) = 0x154;
@@ -409,6 +416,10 @@ static void cpu_quiesce_gate(void *arg)
 int hook_icc_query_nowait(u8 *icc_msg)
 {
     kern.printf("hook_icc_query_nowait called\n");
+    
+    // We need reset bt/wifi, so disable it, we re-enable it when the kernel boot
+    //In alternative we can re-enable it here, but sometimes that give problems.. 
+    kern.wlanbt(0x2);
 
     fix_acpi_tables((void*)PA_TO_DM(0xe0000), 0xe0000);
 

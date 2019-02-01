@@ -55,7 +55,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
 
     int (*copyin)(const void *uaddr, void *kaddr, size_t len) = td ? kern.copyin : k_copyin;
     int (*copyinstr)(const void *uaddr, void *kaddr, size_t len, size_t *done) = td ? kern.copyinstr : k_copyinstr;
-
+   
     kern.printf("sys_kexec invoked\n");
     kern.printf("sys_kexec(%p, %zu, %p, %zu, \"%s\")\n", uap->image,
         uap->image_size, uap->initramfs, uap->initramfs_size, uap->cmd_line);
@@ -148,7 +148,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
         err = EINVAL;
         goto cleanup;
     }
-
+    
     kern.printf("******************************************************\n");
     kern.printf("kexec successfully armed. Please shut down the system.\n");
     kern.printf("******************************************************\n\n");

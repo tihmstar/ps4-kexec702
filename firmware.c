@@ -155,6 +155,40 @@ static const struct fw_expected_sizes_t gladius_fw_sizes = {
     GL_FW_MEC2_SIZE
 };
 
+void copy_edid(u8 **p)
+{
+	int i;
+	u8 *edid = *p;
+	u8 *off_edid = kern.edid;
+	
+	memset(edid, 0, 256);
+    *p += 256;
+	
+	for(i = 0; i < 256; i++)
+		*(edid + i) = *(off_edid + i);
+	
+	*p += 256;
+}
+
+void copy_eap_hdd_key(u8 **p)
+{
+	int i;
+	u8 *eap_key = *p;
+	u8 *off_eap_key = kern.eap_hdd_key;
+	
+	memset(eap_key, 0, 0x20);
+    *p += 0x20;
+	
+	for(i = 0; i < 0x20; i++)
+	{
+		if(i < 0x10)
+			*(eap_key + i) = *(off_eap_key + 0xF - i);
+		else
+			*(eap_key + i) = *(off_eap_key + 0x2F - i);
+	}
+	*p += 0x20;
+}
+
 int copy_firmware(u8 **p, const char *name, struct fw_header_t *hdr, size_t expected_size)
 {
     kern.printf("Copying %s firmware\n", name);
@@ -344,15 +378,25 @@ ssize_t firmware_extract(void *dest)
         return -1;
     }
     const struct fw_expected_sizes_t *fw_sizes = get_fw_expected_sizes();
-
+	
+	//Eap hdd key
+	cpio_hdr(&p, "key", DIR, 0);
+	cpio_hdr(&p, "key/eap_hdd_key.bin", FILE, 0x20);
+	copy_eap_hdd_key(&p);
+	
     cpio_hdr(&p, "lib", DIR, 0);
     cpio_hdr(&p, "lib/firmware", DIR, 0);
-
+    
+    //edid
+    cpio_hdr(&p, "lib/firmware/edid", DIR, 0);
+    cpio_hdr(&p, "lib/firmware/edid/my_edid.bin", FILE, 256);
+	copy_edid(&p);
+    
     char dir[7];
     if (kern.gpu_devid_is_9924 && kern.gpu_devid_is_9924())
       kern.snprintf(dir, sizeof(dir), "amdgpu");
     else
-      kern.snprintf(dir, sizeof(dir), "radeon");
+      kern.snprintf(dir, sizeof(dir), "amdgpu");
 
     char dir_path[64];
     kern.snprintf(dir_path, sizeof(dir_path), "lib/firmware/%s/", dir);
