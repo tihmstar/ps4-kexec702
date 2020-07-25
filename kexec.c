@@ -14,6 +14,7 @@
 #include "kexec.h"
 #include "firmware.h"
 #include "string.h"
+#include "acpi.h"
 
 static int k_copyin(const void *uaddr, void *kaddr, size_t len)
 {
@@ -42,6 +43,14 @@ static int k_copyinstr(const void *uaddr, void *kaddr, size_t len, size_t *done)
     return 0;
 }
 
+static int k_copyout(const void *kaddr, void *uaddr, size_t len)
+{
+    if (!uaddr || !kaddr)
+        return EFAULT;
+    memcpy(uaddr, kaddr, len);
+    return 0;
+}
+
 int sys_kexec(void *td, struct sys_kexec_args *uap)
 {
     int err = 0;
@@ -55,6 +64,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
 
     int (*copyin)(const void *uaddr, void *kaddr, size_t len) = td ? kern.copyin : k_copyin;
     int (*copyinstr)(const void *uaddr, void *kaddr, size_t len, size_t *done) = td ? kern.copyinstr : k_copyinstr;
+    int (*copyout)(const void *kaddr, void *uaddr, size_t len) = td ? kern.copyout : k_copyout;
    
     kern.printf("sys_kexec invoked\n");
     kern.printf("sys_kexec(%p, %zu, %p, %zu, \"%s\")\n", uap->image,
@@ -66,7 +76,7 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
         err = ENOENT;
         goto cleanup;
     }
-
+    
     // Copy in kernel image
     image = kernel_alloc_contig(uap->image_size);
     if (!image) {
@@ -153,6 +163,11 @@ int sys_kexec(void *td, struct sys_kexec_args *uap)
     kern.printf("kexec successfully armed. Please shut down the system.\n");
     kern.printf("******************************************************\n\n");
 
+/*
+    kern.printf("\nkern_reboot(0x%x)...\n", RB_POWEROFF);
+    if (kern.kern_reboot(RB_POWEROFF) == -1)
+        kern.printf("\nkern_reboot(0x%x) failed\n", RB_POWEROFF);
+*/    
     return 0;
 
 cleanup:
@@ -161,6 +176,8 @@ cleanup:
     kernel_free_contig(image, uap->image_size);
     kernel_free_contig(initramfs, uap->initramfs_size);
     return err;
+
+    copyout(NULL, NULL, 0);
 }
 
 int kexec_init(void *_early_printf, sys_kexec_t *sys_kexec_ptr)

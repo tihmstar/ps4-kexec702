@@ -12,6 +12,7 @@
 #define KERNEL_H
 
 #include "types.h"
+#include "reboot.h"
 
 #define PAGE_SIZE 0x4000
 #define PAGE_MASK (PAGE_SIZE - 1)
@@ -89,6 +90,7 @@ struct ksym_t {
     void *eap_hdd_key;
     void *edid;
     void (*wlanbt)(unsigned int state);
+    int (*kern_reboot)(int magic);
 };
 
 extern struct ksym_t kern;
