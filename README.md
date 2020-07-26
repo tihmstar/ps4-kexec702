@@ -45,7 +45,7 @@ hardcode offsets for some symbols. Currently we use the `early_printf`
 given by user to caculate the base address of kernel, then relocate all the
 symbols from the kernel base. You could enable this feature like this:
 
-    make CFLAG='-DPS4_4_00 -DKASLR -DNO_SYMTAB'
+    make 
 
 If you do not want to call the syscall from userspace, you can pass the address
 of a function pointer as `sys_kexec_ptr`. `kexec_init` will write to it the
