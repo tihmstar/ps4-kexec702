@@ -146,14 +146,15 @@ static int resolve_symbols(void)
 void *kernel_alloc_contig(size_t size)
 {
     // use kmem_alloc_contig instead of contigalloc to avoid messing with a malloc_type...
-    vm_offset_t ret = kern.kmem_alloc_contig(
-        *kern.kernel_map, size, M_ZERO | M_WAITOK, (vm_paddr_t)0,
-        ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT);
+    vm_offset_t ret = 0;
+    while(!(ret = kern.kmem_alloc_contig(
+                 *kern.kernel_map, size, M_ZERO | M_WAITOK, (vm_paddr_t)0,
+                 ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT)));
 
-    if (!ret) {
+    /*if (!ret) {
         kern.printf("Failed to allocate %zud bytes\n", size);
         return NULL;
-    }
+    }*/
     return (void *)PA_TO_DM(kern.pmap_extract(kern.kernel_pmap_store, ret));
 }
 
