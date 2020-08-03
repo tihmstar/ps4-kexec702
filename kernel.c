@@ -135,6 +135,7 @@ static int resolve_symbols(void)
     RESOLVE_NOERR(eap_hdd_key);
     RESOLVE_NOERR(edid);
     RESOLVE(wlanbt);
+    RESOLVE(kern_reboot);
     return 1;
 }
 

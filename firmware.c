@@ -155,19 +155,19 @@ static const struct fw_expected_sizes_t gladius_fw_sizes = {
     GL_FW_MEC2_SIZE
 };
 
-void copy_edid(u8 **p)
+void copy_edid(u8 **p, int sz)
 {
 	int i;
 	u8 *edid = *p;
 	u8 *off_edid = kern.edid;
 	
-	memset(edid, 0, 256);
-    *p += 256;
+	memset(edid, 0, sz);
+    *p += sz;
 	
-	for(i = 0; i < 256; i++)
+	for(i = 0; i < sz; i++)
 		*(edid + i) = *(off_edid + i);
 	
-	*p += 256;
+	*p += sz;
 }
 
 void copy_eap_hdd_key(u8 **p)
@@ -388,9 +388,10 @@ ssize_t firmware_extract(void *dest)
     cpio_hdr(&p, "lib/firmware", DIR, 0);
     
     /** We need detect the size of edid first, on some monitor it is 128 on other 256 bytes, so for now remove it **/
-    //cpio_hdr(&p, "lib/firmware/edid", DIR, 0);
-    //cpio_hdr(&p, "lib/firmware/edid/my_edid.bin", FILE, 256);
-	//copy_edid(&p);
+    int edid_sz = (((unsigned char*)kern.edid)[126]?256:128);
+    cpio_hdr(&p, "lib/firmware/edid", DIR, 0);
+    cpio_hdr(&p, "lib/firmware/edid/my_edid.bin", FILE, edid_sz);
+	copy_edid(&p, edid_sz);
     
     char dir[7];
     if (kern.gpu_devid_is_9924 && kern.gpu_devid_is_9924())

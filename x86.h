@@ -65,6 +65,41 @@ static inline void cr3_write(u64 val)
     asm volatile("mov cr3, %0;" :: "r" (val));
 }
 
+typedef struct {
+    u16 limit;
+    u64 address;
+} __attribute__((packed)) desc_ptr;
+
+static inline desc_ptr gdt_read(void)
+{   
+    desc_ptr gdtr;
+    asm volatile("sgdt %0;" : "=m" (gdtr));
+    return gdtr;
+}
+
+static inline void gdt_write(desc_ptr* val)
+{
+    asm volatile("lgdt %0;" :: "m" (*val));
+}
+
+//IDT
+typedef struct {
+    u16 limit;
+    u64 address;
+} __attribute__((packed)) idt_ptr;
+
+static inline idt_ptr idt_read(void)
+{   
+    idt_ptr idtr;
+    asm volatile("sidt %0;" : "=m" (idtr));
+    return idtr;
+}
+
+static inline void idt_write(idt_ptr* val)
+{
+    asm volatile("lidt %0;" :: "m" (*val));
+}
+
 static inline void cr4_pge_disable(void)
 {
     u64 cr4_temp;
@@ -99,6 +134,17 @@ static inline void wrmsr(u32 msr_id, u64 msr_value)
         :
         : "c" (msr_id), "a" (msr_value & 0xffffffff), "d" (msr_value >> 32)
         );
+}
+
+static inline u64 rdmsr(u64 msr_id)
+{
+    u32 low, high;
+    asm volatile (
+        "rdmsr"
+        : "=a"(low), "=d"(high)
+        : "c"(msr_id)
+    );
+    return ((u64)high << 32) | low;
 }
 
 static inline u64 rdtsc (void)

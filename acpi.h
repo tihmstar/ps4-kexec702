@@ -11,8 +11,12 @@
 #ifndef ACPI_H
 #define ACPI_H
 
-#include "types.h"
+#define PACKED __attribute__((packed))
 
 void fix_acpi_tables(void *map_base, u64 phys_base);
+
+#define PA_TO_DM(x) (((uintptr_t)x) | kern.dmap_base)
+
+void disableMSI(u64 MSICapabilityRegAddr);
 
 #endif

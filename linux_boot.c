@@ -25,10 +25,7 @@ static int vram_gb = 2;
 
 #define DM_PML4_BASE ((kern.dmap_base >> PML4SHIFT) & 0x1ff)
 
-struct desc_ptr {
-    u16 limit;
-    u64 address;
-} __attribute__((packed));
+#define MSR_GS_BASE     0xc0000101 /* 64bit GS base */
 
 struct desc_struct {
     u16 limit0;
@@ -142,7 +139,7 @@ static void setup_mtrr(void)
     cr3_write(cr3_read()); // TLB flush
 
     wrmsr(IA32_MTRR_DEF_TYPE, 0); // MTRRs disabled
-
+    
     // Low memory (0GB-2GB) = WB
     wrmsr(MTRR_BASE(0), 0x0000000006);
     wrmsr(MTRR_MASK(0), 0xff80000800);
@@ -155,12 +152,12 @@ static void setup_mtrr(void)
     // VRAM (4GB-4GB+vram_size) = UC
     wrmsr(MTRR_BASE(3), 0x0100000000);
     wrmsr(MTRR_MASK(3), (0xffffffffff - vram_gb * vram_size + 1) | 0x800);
-
+    
     wbinvd();
     cr3_write(cr3_read()); // TLB flush
     wrmsr(IA32_MTRR_DEF_TYPE, (3<<10)); // MTRRs enabled, default uncachable
     cr0_write(cr0);
-    enable_interrupts();
+    enable_interrupts(); 
 }
 
 static void cleanup_interrupts(void)
@@ -183,9 +180,18 @@ static void cleanup_interrupts(void)
     wrmsr(0xc0000408, (1L<<24) | (1L<<52));
 }
 
+#define DEFAULT_STACK	0
+
+#define DPL0		0x0
+#define DPL3		0x3
+
+#define BPCIE_BAR2              0xc8800000
+#define BPCIE_HPET_BASE         0x109000
+#define BPCIE_HPET_SIZE         0x400
+
 static void cpu_quiesce_gate(void *arg)
 {
-    int i;
+
 
     // Ensure we can write anywhere
     cr0_write(cr0_read() & ~CR0_WP);
@@ -201,7 +207,7 @@ static void cpu_quiesce_gate(void *arg)
         __sync_fetch_and_add(&halted_cpus, 1);
         cpu_stop();
     }
-
+    
     uart_write_str("kexec: Waiting for secondary CPUs...\n");
 
     // wait for all cpus to halt
@@ -217,7 +223,7 @@ static void cpu_quiesce_gate(void *arg)
     for (u64 i = 0; i < 4; i++) {
             pdp_base[i] = (i << 30) | PG_RW | PG_V | PG_U | PG_PS;
     }
-
+    
     // Clear (really) low mem.
     // Linux reads from here to try and access EBDA...
     // get_bios_ebda reads u16 from 0x40e
@@ -243,7 +249,7 @@ static void cpu_quiesce_gate(void *arg)
 
     uart_write_str("kexec: Setting up GDT...\n");
 
-    struct desc_ptr gdt_ptr;
+    desc_ptr gdt_ptr;
     struct desc_struct *desc = (struct desc_struct *)(pdp_base + 512);
     gdt_ptr.limit = sizeof(struct desc_struct) * 0x100 - 1;
     gdt_ptr.address = DM_TO_ID(desc);
@@ -324,7 +330,7 @@ static void cpu_quiesce_gate(void *arg)
     shdr->hardware_subarch = X86_SUBARCH_PS4;
     // This needs to be nonzero for the initramfs to work
     shdr->type_of_loader = 0xd0; // kexec
-
+    
     strlcpy((char *)DM_TO_ID(shdr->cmd_line_ptr), nix_info.cmd_line,
         nix_info.bp->hdr.cmdline_size);
     lowmem_pos += strlen(nix_info.cmd_line) + 1;
@@ -334,17 +340,24 @@ static void cpu_quiesce_gate(void *arg)
     // Disable IOMMU
     *(volatile u64 *)PA_TO_DM(0xfc000018) &= ~1;
 
-    // Disable all MSIs on Aeolia
-    for (i = 0; i < 8; i++)
-        *(volatile u32 *)PA_TO_DM(0xd03c844c + i*4) = 0;
+    // Disable all MSIs on Baikal (bus=0, slot=20)
+    disableMSI(0xf80a00e0); //func = 0 Baikal ACPI
+    disableMSI(0xf80a10e0); //func = 1 Baikal Ethernet Controller
+    disableMSI(0xf80a20e0); //func = 2 Baikal SATA AHCI Controller
+    disableMSI(0xf80a30e0); //func = 3 Baikal SD/MMC Host Controller
+    disableMSI(0xf80a40e0); //func = 4 Baikal PCI Express Glue and Miscellaneous Devices
+    disableMSI(0xf80a50e0); //func = 5 Baikal DMA Controller
+    disableMSI(0xf80a60e0); //func = 6 Baikal Baikal Memory (DDR3/SPM)
+    disableMSI(0xf80a70e0); //func = 7 Baikal Baikal USB 3.0 xHCI Host Controller
 
     // Stop HPET timers
-    *(volatile u64 *)PA_TO_DM(0xd0382010) = 0;
-    *(volatile u64 *)PA_TO_DM(0xd0382100) = 0;
-    *(volatile u64 *)PA_TO_DM(0xd0382120) = 0;
-    *(volatile u64 *)PA_TO_DM(0xd0382140) = 0;
-    *(volatile u64 *)PA_TO_DM(0xd0382160) = 0;
-
+	//*(volatile u64 *)PA_TO_DM(BPCIE_BAR2 + BPCIE_HPET_BASE + 0x10) &= ~(1UL << 0);  //General Configuration Register
+	/*
+	u64 NUM_TIM_CAP = *(volatile u64 *)PA_TO_DM(BPCIE_BAR2 + BPCIE_HPET_BASE) & 0x1F00;
+	for (u64 N = 0; N <= NUM_TIM_CAP; N++) {
+		*(volatile u64 *)PA_TO_DM(BPCIE_BAR2 + BPCIE_HPET_BASE + (0x20*N) + 0x100) &= ~(1UL << 2); //Timer N Configuration and Capabilities Register
+	}
+	*/
     uart_write_str("kexec: Reconfiguring VRAM...\n");
 
     configure_vram();
@@ -407,7 +420,6 @@ static void cpu_quiesce_gate(void *arg)
             DM_TO_ID(pml4_base),
             (uintptr_t)&gdt_ptr
             );
-
     // should never reach here
     uart_write_str("kexec: unreachable (?)\n");
 }
