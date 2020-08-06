@@ -198,13 +198,13 @@
 #define kern_off_sysent								0x111B540
 #define kern_off_kernel_pmap_store					0x21D5638
 #define kern_off_Starsha_UcodeInfo					0
-#define kern_off_gpu_devid_is_9924					0x4D32C0
+#define kern_off_gpu_devid_is_9924				    0x4D32C0
 #define kern_off_gc_get_fw_info						0x4D16A0
 #define kern_off_pml4pml4i							0x21D5628
 #define kern_off_dmpml4i							0x21D562C
 #define kern_off_dmpdpi								0x21D5630
 #define kern_off_eap_hdd_key						0x26C8C60
-#define kern_off_edid								0
-#define kern_off_wlanbt							    0xD1B40
+#define kern_off_edid								0x2750334
+#define kern_off_wlanbt							    0x26E720
 #define kern_off_kern_reboot						0x1D45E0
 #endif
