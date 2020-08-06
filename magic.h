@@ -184,7 +184,7 @@
 #define kern_off_snprintf 0x308100
 #define kern_off_copyin 0x1148F0
 #define kern_off_copyout 0x114800
-#define kern_off_copyinstr 0x114D9F
+#define kern_off_copyinstr 0x114D9E
 #define kern_off_kmem_alloc_contig 0x9EC00
 #define kern_off_kmem_free 0x2705D0
 #define kern_off_pmap_extract 0x2E91E0
@@ -199,7 +199,7 @@
 #define kern_off_kernel_pmap_store 0x21D5638
 #define kern_off_Starsha_UcodeInfo 0
 #define kern_off_gpu_devid_is_9924 0x4D32C0
-#define kern_off_gc_get_fw_info 0x4D16D0
+#define kern_off_gc_get_fw_info 0x4D16C6
 #define kern_off_pml4pml4i 0x21D5628
 #define kern_off_dmpml4i 0x21D562C
 #define kern_off_dmpdpi 0x21D5630
