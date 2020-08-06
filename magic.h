@@ -199,7 +199,7 @@
 #define kern_off_kernel_pmap_store 0x21D5638
 #define kern_off_Starsha_UcodeInfo 0
 #define kern_off_gpu_devid_is_9924 0x4D32C0
-#define kern_off_gc_get_fw_info 0x4D16C6
+#define kern_off_gc_get_fw_info 0x4D16A0
 #define kern_off_pml4pml4i 0x21D5628
 #define kern_off_dmpml4i 0x21D562C
 #define kern_off_dmpdpi 0x21D5630
