@@ -255,14 +255,14 @@ static int patch_pmap_check(void)
 
     for (p = (u8*)kern.pmap_protect;
          p < ((u8*)kern.pmap_protect + 0x500); p++) {
-        #ifdef PS4_6_72
-        if (!memcmp(p, "\xF8\xF7\xD0\x83\xE0\x06", 6)) {
+        #ifdef PS4_7_02
+        if (!memcmp(p, "\x44\x89\xF0\x83\xE0\x06", 6)) {
             p[5] = 0;
             kern.printf("pmap_protect patch successful (found at %p)\n", p);
             return 1;
         }
         #else
-        if (!memcmp(p, "x83\xe0\x06\x83\xf8\x06", 6)) {
+        if (!memcmp(p, "\x44\x89\xF0\x83\xE0\x06", 6)) {
             p[2] = 0;
             kern.printf("pmap_protect patch successful (found at %p)\n", p);
             return 1;
