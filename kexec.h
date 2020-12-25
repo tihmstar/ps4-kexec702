@@ -22,6 +22,7 @@ struct sys_kexec_args {
 	void *initramfs;
 	size_t initramfs_size;
 	char *cmd_line;
+	int vram_gb;
 };
 
 typedef int (*sys_kexec_t)(void *td, struct sys_kexec_args *uap);

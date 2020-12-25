@@ -21,7 +21,7 @@ void uart_write_byte(u8 b);
 static u64 vram_base = 0x100000000;
 // Current code assumes it's a power of two.
 static u64 vram_size = 1024 * 1024 * 1024;
-static int vram_gb = 2;
+static int vram_gb = 3;
 
 #define DM_PML4_BASE ((kern.dmap_base >> PML4SHIFT) & 0x1ff)
 
@@ -50,13 +50,14 @@ struct linux_boot_info {
 static struct linux_boot_info nix_info;
 
 void set_nix_info(void *linux_image, struct boot_params *bp, void *initramfs,
-                  size_t initramfs_size, char *cmd_line)
+                  size_t initramfs_size, char *cmd_line, int v)
 {
     nix_info.linux_image = linux_image;
     nix_info.bp = bp;
     nix_info.initramfs = initramfs;
     nix_info.initramfs_size = initramfs_size;
     nix_info.cmd_line = cmd_line;
+    vram_gb = v;
 }
 
 static volatile int halted_cpus = 0;

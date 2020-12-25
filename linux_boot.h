@@ -81,7 +81,7 @@ OFIELD(0x2d0, struct e820entry e820_map[E820MAX]);
 OSTRUCT_END
 
 void set_nix_info(void *linux_image, struct boot_params *bp, void *initramfs,
-                  size_t initramfs_size, char *cmd_line);
+                  size_t initramfs_size, char *cmd_line, int v);
 void prepare_boot_params(struct boot_params *bp, u8 *linux_image);
 int hook_icc_query_nowait(u8 *icc_msg);
 
